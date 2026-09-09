@@ -3,4 +3,6 @@ node_modules
 .next
 **/.next
 .git
-infra/.env
+**/.env
+**/.env.*
+!**/.env.example
