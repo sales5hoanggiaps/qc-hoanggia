@@ -65,13 +65,26 @@ export async function runAmisSync(): Promise<RunSyncResult> {
         if (customerId) {
           const product = await prisma.product.findUnique({ where: { amisProductId } });
           if (product) {
+            const orderDate = order.sale_order_date ? new Date(order.sale_order_date) : null;
+            const existingLink = await prisma.productCustomer.findUnique({
+              where: { productId_customerId: { productId: product.id, customerId } },
+            });
+            // Đơn hàng được fetch theo thứ tự modified_date giảm dần (không liên quan đến
+            // thứ tự sale_order_date), nên không được ghi đè lastOrderDate một cách vô điều
+            // kiện — chỉ cập nhật khi ngày của đơn hàng hiện tại mới hơn giá trị đã lưu.
+            const lastOrderDate =
+              existingLink?.lastOrderDate && orderDate
+                ? existingLink.lastOrderDate > orderDate
+                  ? existingLink.lastOrderDate
+                  : orderDate
+                : (orderDate ?? existingLink?.lastOrderDate ?? null);
             await prisma.productCustomer.upsert({
               where: { productId_customerId: { productId: product.id, customerId } },
-              update: { lastOrderDate: order.sale_order_date ? new Date(order.sale_order_date) : null },
+              update: { lastOrderDate },
               create: {
                 productId: product.id,
                 customerId,
-                lastOrderDate: order.sale_order_date ? new Date(order.sale_order_date) : null,
+                lastOrderDate,
               },
             });
             updatedLinks++;

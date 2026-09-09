@@ -68,6 +68,52 @@ describe("runAmisSync", () => {
     expect(syncLog?.finishedAt).not.toBeNull();
   });
 
+  it("lastOrderDate giữ ngày gần nhất, không bị đơn hàng xử lý sau (nhưng cũ hơn) ghi đè", async () => {
+    // Đơn hàng được fetch theo modified_date giảm dần — không liên quan đến sale_order_date.
+    // Ở đây đơn có sale_order_date MỚI HƠN được xử lý TRƯỚC, đơn có sale_order_date CŨ HƠN
+    // được xử lý SAU, tái hiện đúng kịch bản lỗi: nếu ghi đè vô điều kiện thì giá trị cuối
+    // cùng sẽ là ngày cũ (2026-03-01) thay vì ngày mới hơn (2026-08-15).
+    mockAmisResponses(
+      [
+        {
+          id: 601,
+          sale_order_no: "SO-TEST-NEWER",
+          account_name: "Khách hàng Test LastOrderDate",
+          sale_order_date: "2026-08-15T00:00:00.000+07:00",
+          modified_date: "2026-08-15T00:00:00.000+07:00",
+          organization_unit_name: "Phòng kinh doanh I",
+          sale_order_product_mappings: [
+            { product_code: testCode, description: "Sản phẩm test run-sync", custom_field3: null },
+          ],
+        },
+        {
+          id: 602,
+          sale_order_no: "SO-TEST-OLDER",
+          account_name: "Khách hàng Test LastOrderDate",
+          sale_order_date: "2026-03-01T00:00:00.000+07:00",
+          modified_date: "2026-01-01T00:00:00.000+07:00",
+          organization_unit_name: "Phòng kinh doanh I",
+          sale_order_product_mappings: [
+            { product_code: testCode, description: "Sản phẩm test run-sync", custom_field3: null },
+          ],
+        },
+      ],
+      [{ id: 99992, account_name: "Khách hàng Test LastOrderDate" }]
+    );
+
+    await runAmisSync();
+
+    const product = await prisma.product.findUnique({ where: { baseCode: testCode } });
+    expect(product).not.toBeNull();
+    const customer = await prisma.customer.findUnique({ where: { amisCustomerId: "99992" } });
+    expect(customer).not.toBeNull();
+
+    const link = await prisma.productCustomer.findUnique({
+      where: { productId_customerId: { productId: product!.id, customerId: customer!.id } },
+    });
+    expect(link?.lastOrderDate?.toISOString()).toBe(new Date("2026-08-15T00:00:00.000+07:00").toISOString());
+  });
+
   it("ghi SyncLog với errorMessage và không crash khi AMIS lỗi kết nối", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => {
       throw new Error("network unreachable (test)");
