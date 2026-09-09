@@ -110,6 +110,7 @@ qc-hoanggia/
   "version": "0.1.0",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
+    "postinstall": "node -e \"if(require('fs').existsSync('packages/db/src')){require('child_process').execSync('npm run build --workspace=packages/db',{stdio:'inherit'})}\"",
     "dev": "npm run dev --workspace=apps/web",
     "build": "npm run build --workspace=packages/db && npm run build --workspace=apps/web",
     "lint": "npm run lint --workspace=apps/web",
@@ -157,7 +158,6 @@ qc-hoanggia/
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@qc/db": "*",
     "bcryptjs": "^2.4.3",
     "next": "^14.2.13",
     "next-auth": "5.0.0-beta.20",
@@ -363,7 +363,7 @@ git commit -m "chore: scaffold Next.js app + testing pipeline"
 - Create: `packages/db/prisma/schema.prisma`
 - Create: `packages/db/src/index.ts`
 - Create: `infra/docker-compose.yml`
-- Modify: `apps/web/package.json` (dependency `@qc/db` already listed in Task 1 — no change needed, just confirms the workspace resolves)
+- Modify: `apps/web/package.json` (add the `@qc/db` workspace dependency — deliberately left out of Task 1 since nothing there used it yet, and listing it before `packages/db` existed would break `npm install`)
 - Test: `apps/web/src/lib/db.integration.test.ts`
 
 **Interfaces:**
@@ -400,7 +400,7 @@ Then edit `infra/.env` (already gitignored), set:
 DATABASE_URL=postgresql://qc:qc_dev_password@localhost:5433/qc_hoanggia
 ```
 
-Also add the same line to `infra/.env.example` but with a placeholder value (`postgresql://user:password@localhost:5432/qc_hoanggia`) so the file stays a safe template.
+`infra/.env.example` already has an empty `DATABASE_URL=` line (written during brainstorming) — fill in a placeholder value there too (`postgresql://user:password@localhost:5432/qc_hoanggia`) so the file stays a safe template; don't duplicate the line.
 
 - [ ] **Step 2: Write `packages/db/package.json`**
 
@@ -681,15 +681,18 @@ export type {
 } from "@prisma/client";
 ```
 
-- [ ] **Step 6: Generate client and run the migration**
+- [ ] **Step 6: Wire `@qc/db` into `apps/web`, generate client, run the migration**
 
-Run:
+Task 1 deliberately left `@qc/db` out of `apps/web/package.json` (it didn't exist yet). Add it now — open `apps/web/package.json` and add `"@qc/db": "*"` as the first entry under `dependencies`, alongside the existing `bcryptjs`/`next`/etc. entries.
+
+Then run (from repo root):
 ```bash
 npm install
-npm run prisma:generate
 npm run prisma:migrate -- --name init
 ```
-Expected: prompts for a migration name if not passed inline; creates `packages/db/prisma/migrations/<timestamp>_init/migration.sql` and applies it to the running Postgres container.
+Expected: `npm install` links `@qc/db` as a local workspace package, then triggers the root `postinstall` script, which runs `npm run build --workspace=packages/db` (`prisma generate && tsc`) — this is what makes `dist/index.js` exist so anything importing `"@qc/db"` (the test below, `apps/web` at dev/build time) can resolve it; without this compiled output, the import fails even though the source file exists. `prisma migrate dev` then prompts for a migration name if not passed inline, creates `packages/db/prisma/migrations/<timestamp>_init/migration.sql`, and applies it to the running Postgres container — Prisma's own CLI re-runs `prisma generate` as part of this, so the client stays in sync with the schema.
+
+**Remember:** any later task that edits `packages/db/src/index.ts` or `schema.prisma` must re-run `npm run build --workspace=packages/db` (or `npm install` again) before its tests can see the change — there is no watch mode wired up in this plan.
 
 - [ ] **Step 7: Write the failing integration test**
 
@@ -722,7 +725,7 @@ Expected: PASS — confirms `@qc/db` resolves, the migration applied, and `DATAB
 - [ ] **Step 9: Commit**
 
 ```bash
-git add packages/db infra/docker-compose.yml infra/.env.example apps/web/src/lib/db.integration.test.ts
+git add packages/db infra/docker-compose.yml infra/.env.example apps/web/package.json apps/web/src/lib/db.integration.test.ts
 git commit -m "feat(db): add full Prisma schema and local Postgres compose"
 ```
 
@@ -1080,13 +1083,9 @@ export default function LoginPage() {
 }
 ```
 
-- [ ] **Step 8: Add `AUTH_SECRET` to env files**
+- [ ] **Step 8: Confirm `AUTH_SECRET` is set**
 
-Add to `infra/.env.example`:
-```
-AUTH_SECRET=
-```
-Add a real generated value to `infra/.env` (generate with `openssl rand -base64 32`).
+`infra/.env.example` (`AUTH_SECRET=`) and `infra/.env` (with a real generated value) already have this — it replaced an earlier placeholder named `SESSION_SECRET` once NextAuth v5's actual expected variable name was confirmed. Just verify `infra/.env` has a non-empty `AUTH_SECRET`; regenerate with `openssl rand -base64 32` only if it's missing.
 
 - [ ] **Step 9: Manual verification**
 
@@ -1969,20 +1968,24 @@ git commit -m "feat(admin): category taxonomy management (Manager+)"
 
 **Files:**
 - Create: `apps/web/Dockerfile`
-- Create: `apps/web/.dockerignore`
+- Create: `.dockerignore` (repo root — not `apps/web/`)
 - Modify: `infra/docker-compose.yml`
 - Create: `README.md`
 
 **Interfaces:**
 - No new code interfaces — this task wires what Tasks 1–8 already produced into a deployable stack.
 
-- [ ] **Step 1: Write `apps/web/.dockerignore`**
+- [ ] **Step 1: Write `.dockerignore` at the repo root**
+
+The compose file's build `context` is `..` (repo root, set in Step 3 below) even though the Dockerfile lives at `apps/web/Dockerfile` — Docker reads `.dockerignore` from the context root, so it must be created there, not inside `apps/web/`:
 
 ```
 node_modules
+**/node_modules
 .next
-.env
-.env.local
+**/.next
+.git
+infra/.env
 ```
 
 - [ ] **Step 2: Write `apps/web/Dockerfile`**
@@ -1997,8 +2000,10 @@ RUN npm install
 
 FROM base AS build
 COPY . .
-RUN npm run prisma:generate
-RUN npm run build --workspace=apps/web
+# Root "build" script runs packages/db's own build (prisma generate + tsc,
+# producing dist/index.js) before building apps/web — apps/web's build
+# fails to resolve "@qc/db" without that compiled output existing first.
+RUN npm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /repo
@@ -2032,6 +2037,13 @@ services:
       dockerfile: apps/web/Dockerfile
     restart: unless-stopped
     env_file: .env
+    environment:
+      # Overrides .env's DATABASE_URL: inside the Compose network the web
+      # container reaches Postgres at the service name "postgres" on its
+      # container port 5432 — "localhost:5433" (the host-side mapping used
+      # for local `npm run dev`) refers to the web container itself here
+      # and would not connect.
+      DATABASE_URL: postgresql://qc:qc_dev_password@postgres:5432/qc_hoanggia
     depends_on:
       - postgres
     ports:
@@ -2087,7 +2099,7 @@ Expected: both containers start; `http://localhost:3100/login` loads the login p
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/web/Dockerfile apps/web/.dockerignore infra/docker-compose.yml README.md
+git add apps/web/Dockerfile .dockerignore infra/docker-compose.yml README.md
 git commit -m "chore(infra): Dockerize web app, finalize compose stack"
 ```
 
