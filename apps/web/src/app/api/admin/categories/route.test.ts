@@ -1,3 +1,9 @@
+/**
+ * Integration tests for /api/admin/categories endpoint.
+ * Requires DATABASE_URL environment variable sourced from infra/.env.
+ * Run with: set -a && source infra/.env && set +a && npm run test --workspace=apps/web
+ */
+
 import { describe, expect, it, vi, beforeEach, afterAll } from "vitest";
 import { prisma, UserRole } from "@qc/db";
 
