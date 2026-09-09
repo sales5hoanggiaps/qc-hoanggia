@@ -14,6 +14,7 @@ export type {
   Category,
   Customer,
   Product,
+  ProductCustomer,
   ProductVersion,
   TCSPData,
   TCSPSpecRow,
