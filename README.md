@@ -25,7 +25,7 @@ npm run db:seed
 npm run dev
 ```
 
-Đăng nhập lần đầu: `admin` / `DoiMatKhauNgay!2026` (đổi ngay sau khi đăng nhập).
+Đăng nhập lần đầu: `admin` / `DoiMatKhauNgay!2026`. *(Lưu ý: tính năng đổi mật khẩu chưa có ở giai đoạn Foundation — sẽ bổ sung ở plan tiếp theo; hiện tại đổi mật khẩu qua Prisma Studio hoặc SQL trực tiếp nếu cần.)*
 
 ## Chạy toàn bộ qua Docker
 
