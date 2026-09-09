@@ -11,5 +11,23 @@ services:
     volumes:
       - qc_postgres_data:/var/lib/postgresql/data
 
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Overrides .env's DATABASE_URL: inside the Compose network the web
+      # container reaches Postgres at the service name "postgres" on its
+      # container port 5432 — "localhost:5433" (the host-side mapping used
+      # for local `npm run dev`) refers to the web container itself here
+      # and would not connect.
+      DATABASE_URL: postgresql://qc:qc_dev_password@postgres:5432/qc_hoanggia
+    depends_on:
+      - postgres
+    ports:
+      - "3100:3000"
+
 volumes:
   qc_postgres_data:
