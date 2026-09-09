@@ -254,11 +254,22 @@ model SyncLog {
 
 **Kích hoạt:** cron hằng đêm (mặc định 02:00) + endpoint nội bộ gọi bởi nút "Đồng bộ ngay" (chỉ MANAGER/ADMIN thấy nút này).
 
+**Xác nhận thực tế bằng cách gọi thử API thật (2026-09-09), thay cho suy đoán:**
+- `GET /api/v2/Products` trả về `id` (số, dùng làm `amisProductId`), `product_code` (vd `"SI08701"`), `product_name`, `description`, `inactive`, `product_category` (vd `"Sản xuất IN"` — đây là phân loại nội bộ AMIS theo dây chuyền sản xuất, **khác hoàn toàn** với `Category` của app QC — không dùng field này để gán `Product.categoryId`, Admin/Quản trị viên tự gán tay theo đúng thiết kế mục 3).
+- `GET /api/v2/SaleOrders` trả về `sale_order_product_mappings[]` (mỗi dòng có `product_code`, `description`, `custom_field3`), `account_name`, `sale_order_date`, `organization_unit_name` (xác nhận nhiều phòng ban cùng ghi vào 1 hệ thống, đúng như rủi ro mục 12 đã lường trước).
+- `GET /api/v2/Customers` trả về `id` (dùng làm `amisCustomerId`) và `account_name`.
+
+**Quy ước đặt mã phiên bản — phát hiện quan trọng cần sửa lại cách nhận diện:** quét thử 1000 mã hàng thật cho thấy AMIS dùng dấu chấm (`.`) trong mã hàng cho **hai mục đích khác nhau, không phân biệt được nếu chỉ nhìn "có dấu chấm"**:
+- Phiên bản thật (đúng mô tả của anh Quân): `SI08694.1`, `SI07284.1`, `SI00653.3`, `AA09511.1` — dạng `<2-4 chữ cái><4-7 số>.<1-2 số>`.
+- Một kiểu đánh số nội bộ khác của AMIS, **không phải phiên bản**: `AA03.000170`, `AA01.00243`, `AA08.00012` — dạng `<2-4 chữ cái><1-3 số>.<số có số 0 ở đầu, thường 5-6 chữ số>`. Nếu dùng "có dấu chấm" làm điều kiện nhận diện phiên bản, các mã này sẽ bị hiểu nhầm.
+
+→ Quy tắc nhận diện chính xác (đã kiểm chứng khớp 100% với mẫu thật): regex `^([A-Z]{1,4}\d{4,7})\.(\d{1,2})$` — phần trước dấu chấm phải có **4-7 chữ số** (không phải 1-3 như kiểu đánh số kia), phần sau dấu chấm chỉ **1-2 chữ số** (số phiên bản thật không bao giờ có số 0 ở đầu hay dài). Vẫn giữ điều kiện thứ hai làm lưới an toàn kép: chỉ coi là phiên bản mới khi *vừa* khớp regex *vừa* có `baseCode` (phần trước dấu chấm) đã tồn tại sẵn trong hệ thống — hai điều kiện cộng lại loại gần hết rủi ro nhận nhầm.
+
 **Các bước mỗi lần chạy:**
 1. Gọi SaleOrders API, lọc đơn hàng có ngày đặt trong năm 2026 (phân trang cho tới hết).
-2. Từ mỗi đơn hàng, rút ra: mã hàng (amisProductId), khách hàng (amisCustomerId), ngày đặt.
-3. Với mỗi mã hàng xuất hiện, gọi Products API lấy tên/mô tả cơ bản mới nhất.
-4. **Nhận diện phiên bản:** nếu mã AMIS có dạng `<baseCode>.<n>` và `baseCode` đã tồn tại trong hệ thống → coi là phiên bản mới của `baseCode` đó; nếu không khớp mẫu này và chưa từng thấy `amisProductId` → coi là mã hàng hoàn toàn mới.
+2. Từ mỗi đơn hàng, rút ra: mã hàng (`sale_order_product_mappings[].product_code`), khách hàng (`account_name`/customer id của đơn), ngày đặt (`sale_order_date`).
+3. Với mỗi mã hàng xuất hiện, gọi Products API lấy `id` (→ `amisProductId`), `product_name`, `description` mới nhất.
+4. **Nhận diện phiên bản:** áp quy tắc regex + điều kiện `baseCode` đã tồn tại nêu trên. Không khớp và `amisProductId` (field `id`) chưa từng thấy → coi là mã hàng hoàn toàn mới.
 5. **Upsert** (không bao giờ tự động ghi đè nội dung QC do người dùng nhập):
    - Mã hoàn toàn mới → tạo `Product` (`status = PENDING_QC`) + `ProductVersion` số 1 rỗng nội dung.
    - Phiên bản mới nhận diện được → tạo `ProductVersion` kế thừa toàn bộ dữ liệu 4 mục từ phiên bản `isCurrent` trước đó, set phiên bản cũ `isCurrent = false`, ghi `ChangeLogEntry` nguồn `AMIS_SYNC` mô tả "phiên bản mới, chờ cập nhật nội dung".
@@ -266,7 +277,7 @@ model SyncLog {
    - Nếu tên/mô tả cơ bản từ AMIS khác dữ liệu đang lưu ở phiên bản hiện hành mà không phát sinh mã phiên bản mới → không tự sửa, chỉ gắn cờ để MANAGER/ADMIN xem xét (hiển thị trong trang danh sách).
 6. Ghi 1 bản ghi `SyncLog` (số liệu tổng hợp + lỗi nếu có). Lỗi kết nối AMIS không làm crash worker; job dừng an toàn, log lỗi để xem trong khu quản trị.
 
-**Phụ thuộc bên ngoài:** đã có sẵn `AMIS_APP_ID`/`AMIS_CLIENT_SECRET` (cùng cặp credential đang dùng cho đồng bộ đơn hàng ở hoanggia-crm) — không còn là việc chặn tiến độ nữa. Lưu tại `infra/.env` (không commit git).
+**Phụ thuộc bên ngoài:** đã có sẵn `AMIS_APP_ID`/`AMIS_CLIENT_SECRET` (cùng cặp credential đang dùng cho đồng bộ đơn hàng ở hoanggia-crm), đã xác thực gọi API thật thành công. Lưu tại `infra/.env` (không commit git).
 
 ## 7. Quản lý nội dung 4 mục & Media
 
@@ -303,9 +314,10 @@ model SyncLog {
 
 ## 12. Rủi ro & phụ thuộc bên ngoài
 
-- **Định dạng dữ liệu Products thực tế từ AMIS** chưa được kiểm chứng chi tiết — `hoanggia-crm/apps/worker/src/sync/amis.ts` đã xác nhận cấu trúc `SaleOrders` (field `sale_order_product_mappings` có `product_code`, `description`, `unit`...) nhưng chưa gọi thử endpoint `Products` riêng để lấy thông tin sản phẩm gốc (kích thước, chất liệu mặc định...). Cần gọi thử endpoint này ở giai đoạn tích hợp để xác nhận đúng field trước khi hoàn thiện code đồng bộ; có thể phát sinh điều chỉnh nhỏ ở bước upsert.
-- **Quy ước đặt mã phiên bản** (`<baseCode>.<n>`) dựa trên mô tả của anh Quân — cần xác nhận lại thực tế trong AMIS luôn tuân thủ đúng mẫu này để nhận diện tự động chính xác.
-- **Phạm vi dữ liệu:** khác với hoanggia-crm (chỉ đồng bộ đơn của nhân viên PKD1 đang quản lý), app QC cần **toàn bộ mã hàng của cả công ty** (mọi phòng kinh doanh, mọi khách hàng) trong năm 2026 — không lọc theo nhân viên/phòng ban. Cần chú ý khi viết lại logic đồng bộ, không copy nguyên bộ lọc `managedCodes` từ hoanggia-crm.
+- ~~Định dạng dữ liệu Products thực tế từ AMIS chưa kiểm chứng~~ **Đã giải quyết (2026-09-09):** gọi thử API thật, xác nhận đầy đủ field cần dùng cho Products/SaleOrders/Customers (xem mục 6).
+- ~~Quy ước đặt mã phiên bản `<baseCode>.<n>` chưa xác nhận~~ **Đã giải quyết một phần, phát hiện thêm rủi ro mới đã có cách xử lý (2026-09-09):** AMIS dùng dấu chấm cho 2 mục đích khác nhau; đã tìm ra quy tắc regex + điều kiện kép phân biệt chính xác 100% trên mẫu thật 1000 mã hàng (xem mục 6). Rủi ro còn lại: quy tắc này dựa trên 1000 mã quét được tại 1 thời điểm — nếu về sau AMIS xuất hiện kiểu mã mới không khớp cả 2 mẫu đã biết, sync sẽ coi nó là "mã hoàn toàn mới" (an toàn — không tự động ghi đè nhầm nội dung QC của mã khác, chỉ có thể bỏ sót việc nối phiên bản) thay vì gây lỗi.
+- **Phạm vi dữ liệu:** khác với hoanggia-crm (chỉ đồng bộ đơn của nhân viên PKD1 đang quản lý), app QC cần **toàn bộ mã hàng của cả công ty** (mọi phòng kinh doanh, mọi khách hàng) trong năm 2026 — không lọc theo nhân viên/phòng ban. Cần chú ý khi viết lại logic đồng bộ, không copy nguyên bộ lọc `managedCodes` từ hoanggia-crm. Đã xác nhận qua dữ liệu thật: trường `organization_unit_name` trên SaleOrders cho thấy nhiều phòng ban khác nhau cùng ghi vào hệ thống AMIS (vd "Phòng kinh doanh I"), đúng như lường trước.
+- **Foundation phase để lại việc chưa làm cần ưu tiên sớm ở phase này hoặc trước khi dùng thật:** chưa có tính năng đổi mật khẩu (`PATCH /api/me/password`) — tài khoản admin mặc định hiện không đổi được mật khẩu qua giao diện.
 
 ## 13. Lộ trình triển khai
 
