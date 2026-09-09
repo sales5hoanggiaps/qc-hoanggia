@@ -30,6 +30,9 @@ uploads/
 *.log
 npm-debug.log*
 
+# Subagent-driven-development scratch workspace (ledgers, briefs, review packages)
+.superpowers/
+
 # OS/editor
 .DS_Store
 Thumbs.db
