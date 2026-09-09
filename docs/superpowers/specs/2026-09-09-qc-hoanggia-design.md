@@ -250,7 +250,7 @@ model SyncLog {
 
 ## 6. Đồng bộ dữ liệu từ AMIS
 
-**Xác thực:** `sync-worker` giữ `client_id`/`client_secret` (biến môi trường, không lộ ra frontend) do công ty đăng ký trên cổng Open API của MISA, lấy `access_token` (hiệu lực 24h), tự làm mới khi hết hạn.
+**Xác thực:** `sync-worker` giữ `AMIS_APP_ID`/`AMIS_CLIENT_SECRET` (biến môi trường, không lộ ra frontend — công ty đã có sẵn cặp này, đang dùng thật cho đồng bộ đơn hàng bên hoanggia-crm). Gọi `POST https://crmconnect.misa.vn/api/v2/Account` với `{client_id, client_secret}` để lấy Bearer token, gắn kèm header `Clientid` ở các request sau. Token không nêu rõ thời hạn trong tài liệu tổng quan — worker tự gọi lại lấy token mới khi gặp lỗi xác thực (401), theo đúng pattern đã chạy ổn định trong `hoanggia-crm/apps/worker/src/sync/amis.ts`.
 
 **Kích hoạt:** cron hằng đêm (mặc định 02:00) + endpoint nội bộ gọi bởi nút "Đồng bộ ngay" (chỉ MANAGER/ADMIN thấy nút này).
 
@@ -266,7 +266,7 @@ model SyncLog {
    - Nếu tên/mô tả cơ bản từ AMIS khác dữ liệu đang lưu ở phiên bản hiện hành mà không phát sinh mã phiên bản mới → không tự sửa, chỉ gắn cờ để MANAGER/ADMIN xem xét (hiển thị trong trang danh sách).
 6. Ghi 1 bản ghi `SyncLog` (số liệu tổng hợp + lỗi nếu có). Lỗi kết nối AMIS không làm crash worker; job dừng an toàn, log lỗi để xem trong khu quản trị.
 
-**Phụ thuộc bên ngoài quan trọng:** công ty cần đăng ký ứng dụng trên cổng Open API của MISA AMIS CRM để được cấp `client_id`/`client_secret` thật trước khi tích hợp có thể hoạt động ([tài liệu MISA](https://www.misa.vn/154981/tong-quan-open-api-misa-crm/)). Đây là việc anh Quân/IT cần chủ động liên hệ MISA, không nằm trong phạm vi code của dự án.
+**Phụ thuộc bên ngoài:** đã có sẵn `AMIS_APP_ID`/`AMIS_CLIENT_SECRET` (cùng cặp credential đang dùng cho đồng bộ đơn hàng ở hoanggia-crm) — không còn là việc chặn tiến độ nữa. Lưu tại `infra/.env` (không commit git).
 
 ## 7. Quản lý nội dung 4 mục & Media
 
@@ -303,9 +303,9 @@ model SyncLog {
 
 ## 12. Rủi ro & phụ thuộc bên ngoài
 
-- **Phụ thuộc MISA cấp client_id/secret Open API** — chặn toàn bộ phần đồng bộ nếu chưa có; nên xin sớm.
-- **Định dạng dữ liệu SaleOrders/Products thực tế từ AMIS** chưa được kiểm chứng chi tiết (mới xác nhận qua tài liệu tổng quan) — khi có thông tin đăng nhập/API thật, cần gọi thử để xác nhận đúng field trước khi hoàn thiện code đồng bộ; có thể phát sinh điều chỉnh nhỏ ở bước upsert.
+- **Định dạng dữ liệu Products thực tế từ AMIS** chưa được kiểm chứng chi tiết — `hoanggia-crm/apps/worker/src/sync/amis.ts` đã xác nhận cấu trúc `SaleOrders` (field `sale_order_product_mappings` có `product_code`, `description`, `unit`...) nhưng chưa gọi thử endpoint `Products` riêng để lấy thông tin sản phẩm gốc (kích thước, chất liệu mặc định...). Cần gọi thử endpoint này ở giai đoạn tích hợp để xác nhận đúng field trước khi hoàn thiện code đồng bộ; có thể phát sinh điều chỉnh nhỏ ở bước upsert.
 - **Quy ước đặt mã phiên bản** (`<baseCode>.<n>`) dựa trên mô tả của anh Quân — cần xác nhận lại thực tế trong AMIS luôn tuân thủ đúng mẫu này để nhận diện tự động chính xác.
+- **Phạm vi dữ liệu:** khác với hoanggia-crm (chỉ đồng bộ đơn của nhân viên PKD1 đang quản lý), app QC cần **toàn bộ mã hàng của cả công ty** (mọi phòng kinh doanh, mọi khách hàng) trong năm 2026 — không lọc theo nhân viên/phòng ban. Cần chú ý khi viết lại logic đồng bộ, không copy nguyên bộ lọc `managedCodes` từ hoanggia-crm.
 
 ## 13. Lộ trình triển khai
 

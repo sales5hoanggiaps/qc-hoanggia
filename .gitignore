@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+.next/
+out/
+dist/
+build/
+
+# Env files — never commit real secrets
+.env
+.env.local
+.env.production
+.env.*.local
+!.env.example
+infra/docker-compose.override.yml
+
+# Prisma
+packages/db/prisma/dev.db
+packages/db/prisma/dev.db-journal
+
+# Uploads (ảnh/video/tài liệu thật của công ty — không commit)
+apps/web/uploads/
+apps/web/public/uploads/
+uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
