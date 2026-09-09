@@ -44,6 +44,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
+    authorized({ auth }) {
+      // Bắt buộc: middleware (src/middleware.ts) chỉ redirect về /login khi
+      // callback này trả về false — không có nó, `auth as middleware` chỉ làm
+      // mới session mà không chặn request nào (xem next-auth/lib/index.d.ts).
+      return !!auth?.user;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = (user as AuthUser).id;
