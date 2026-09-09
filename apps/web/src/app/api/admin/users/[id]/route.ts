@@ -23,6 +23,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  const target = await prisma.user.findUnique({ where: { id: params.id } });
+  if (!target) {
+    return NextResponse.json({ error: "Không tìm thấy tài khoản" }, { status: 404 });
+  }
+  if (target.role === UserRole.ADMIN) {
+    return NextResponse.json(
+      { error: "Không thể thay đổi tài khoản Admin qua API này" },
+      { status: 400 }
+    );
+  }
+
   const user = await prisma.user.update({
     where: { id: params.id },
     data: parsed.data,
