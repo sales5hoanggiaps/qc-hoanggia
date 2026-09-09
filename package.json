@@ -1,0 +1,18 @@
+{
+  "name": "qc-hoanggia",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "postinstall": "node -e \"if(require('fs').existsSync('packages/db/src')){require('child_process').execSync('npm run build --workspace=packages/db',{stdio:'inherit'})}\"",
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=packages/db && npm run build --workspace=apps/web",
+    "lint": "npm run lint --workspace=apps/web",
+    "test": "npm run test --workspace=apps/web",
+    "prisma:generate": "npm run generate --workspace=packages/db",
+    "prisma:migrate": "npm run migrate:dev --workspace=packages/db",
+    "prisma:studio": "npm run studio --workspace=packages/db",
+    "db:seed": "npm run seed --workspace=packages/db"
+  },
+  "engines": { "node": ">=20.0.0" }
+}
