@@ -1,0 +1,25 @@
+{
+  "name": "@qc/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "generate": "prisma generate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "studio": "prisma studio",
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.20.0"
+  },
+  "devDependencies": {
+    "bcryptjs": "^2.4.3",
+    "prisma": "^5.20.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  },
+  "prisma": { "seed": "tsx prisma/seed.ts" }
+}

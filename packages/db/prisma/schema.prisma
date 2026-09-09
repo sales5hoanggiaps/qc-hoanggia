@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  QC_STAFF
+  MANAGER
+  ADMIN
+}
+
+enum ProductStatus {
+  ACTIVE
+  PENDING_QC
+  DISCONTINUED
+}
+
+enum DocumentKind {
+  COA
+  MSDS
+  ROHS
+  OTHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  fullName     String
+  username     String   @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  products Product[]
+}
+
+model Customer {
+  id             String            @id @default(cuid())
+  amisCustomerId String            @unique
+  name           String
+  products       ProductCustomer[]
+}
+
+model Product {
+  id               String           @id @default(cuid())
+  baseCode         String           @unique
+  amisProductId    String           @unique
+  categoryId       String?
+  category         Category?        @relation(fields: [categoryId], references: [id])
+  status           ProductStatus    @default(PENDING_QC)
+  currentVersionId String?          @unique
+  currentVersion   ProductVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  versions         ProductVersion[] @relation("AllVersions")
+  customers        ProductCustomer[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model ProductCustomer {
+  productId     String
+  customerId    String
+  lastOrderDate DateTime?
+  product       Product  @relation(fields: [productId], references: [id])
+  customer      Customer @relation(fields: [customerId], references: [id])
+
+  @@id([productId, customerId])
+}
+
+model ProductVersion {
+  id                String   @id @default(cuid())
+  productId         String
+  product           Product  @relation("AllVersions", fields: [productId], references: [id])
+  currentForProduct Product? @relation("CurrentVersion")
+  versionNumber     Int
+  amisProductId     String   @unique
+  name              String
+  description       String?
+  isCurrent         Boolean  @default(true)
+  createdByAmisSync Boolean  @default(true)
+  createdAt         DateTime @default(now())
+
+  tcsp       TCSPData?
+  qc         QCData?
+  packaging  PackagingData?
+  documents  DocumentsData?
+  changeLogs ChangeLogEntry[]
+
+  @@unique([productId, versionNumber])
+}
+
+model TCSPData {
+  id           String         @id @default(cuid())
+  versionId    String         @unique
+  version      ProductVersion @relation(fields: [versionId], references: [id])
+  materialCode String?
+  description  String?
+  preparedBy   String?
+  approvedBy   String?
+  approvedAt   DateTime?
+  specRows     TCSPSpecRow[]
+  media        MediaAsset[]
+}
+
+model TCSPSpecRow {
+  id        String   @id @default(cuid())
+  tcspId    String
+  tcsp      TCSPData @relation(fields: [tcspId], references: [id])
+  groupName String
+  criterion String
+  value     String
+  tolerance String?
+  unit      String?
+  note      String?
+  sortOrder Int      @default(0)
+}
+
+model QCData {
+  id           String         @id @default(cuid())
+  versionId    String         @unique
+  version      ProductVersion @relation(fields: [versionId], references: [id])
+  checklist    String?
+  knownDefects String?
+  specialNotes String?
+  media        MediaAsset[]
+}
+
+model PackagingData {
+  id           String         @id @default(cuid())
+  versionId    String         @unique
+  version      ProductVersion @relation(fields: [versionId], references: [id])
+  instructions String?
+  specialNotes String?
+  media        MediaAsset[]
+}
+
+model DocumentsData {
+  id        String            @id @default(cuid())
+  versionId String            @unique
+  version   ProductVersion    @relation(fields: [versionId], references: [id])
+  files     ProductDocument[]
+}
+
+model ProductDocument {
+  id          String        @id @default(cuid())
+  documentsId String
+  documents   DocumentsData @relation(fields: [documentsId], references: [id])
+  kind        DocumentKind
+  label       String
+  storageKey  String
+  uploadedAt  DateTime      @default(now())
+}
+
+model MediaAsset {
+  id          String @id @default(cuid())
+  storageKey  String
+  mimeType    String
+  caption     String?
+  sortOrder   Int     @default(0)
+
+  tcspId      String?
+  tcsp        TCSPData?      @relation(fields: [tcspId], references: [id])
+  qcId        String?
+  qc          QCData?        @relation(fields: [qcId], references: [id])
+  packagingId String?
+  packaging   PackagingData? @relation(fields: [packagingId], references: [id])
+}
+
+model ChangeLogEntry {
+  id        String         @id @default(cuid())
+  versionId String
+  version   ProductVersion @relation(fields: [versionId], references: [id])
+  fieldPath String
+  oldValue  String?
+  newValue  String?
+  changedBy String?
+  changedAt DateTime       @default(now())
+  source    String
+}
+
+model SyncLog {
+  id            String    @id @default(cuid())
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  newProducts   Int       @default(0)
+  updatedLinks  Int       @default(0)
+  newVersions   Int       @default(0)
+  flaggedReview Int       @default(0)
+  errorMessage  String?
+}

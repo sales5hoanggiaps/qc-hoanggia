@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@qc/db": "*",
     "bcryptjs": "^2.4.3",
     "next": "^14.2.13",
     "next-auth": "5.0.0-beta.20",

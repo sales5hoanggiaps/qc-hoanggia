@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: qc
+      POSTGRES_PASSWORD: qc_dev_password
+      POSTGRES_DB: qc_hoanggia
+    ports:
+      - "5433:5432"
+    volumes:
+      - qc_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  qc_postgres_data:
