@@ -10,17 +10,20 @@ describe("DashboardNav", () => {
     expect(screen.getByText("Danh sách mã hàng")).toBeDefined();
     expect(screen.queryByText("Quản trị viên")).toBeNull();
     expect(screen.queryByText("Tài khoản")).toBeNull();
+    expect(screen.getByText("Đăng xuất")).toBeDefined();
   });
 
   it("MANAGER thấy thêm mục Quản trị viên nhưng không thấy Tài khoản", () => {
     render(<DashboardNav role={UserRole.MANAGER} />);
     expect(screen.getByText("Quản trị viên")).toBeDefined();
     expect(screen.queryByText("Tài khoản")).toBeNull();
+    expect(screen.getByText("Đăng xuất")).toBeDefined();
   });
 
   it("ADMIN thấy đầy đủ mọi mục kể cả Tài khoản", () => {
     render(<DashboardNav role={UserRole.ADMIN} />);
     expect(screen.getByText("Quản trị viên")).toBeDefined();
     expect(screen.getByText("Tài khoản")).toBeDefined();
+    expect(screen.getByText("Đăng xuất")).toBeDefined();
   });
 });

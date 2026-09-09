@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { UserRole } from "@qc/db";
+import { SignOutButton } from "./SignOutButton";
 
 export function DashboardNav({ role }: { role: UserRole }) {
   const canManageContent = role === UserRole.MANAGER || role === UserRole.ADMIN;
@@ -22,6 +23,7 @@ export function DashboardNav({ role }: { role: UserRole }) {
           Tài khoản
         </Link>
       )}
+      <SignOutButton />
     </nav>
   );
 }
