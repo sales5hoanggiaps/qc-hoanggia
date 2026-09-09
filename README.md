@@ -8,6 +8,18 @@ Web app tra cứu Tiêu chuẩn sản phẩm / QC / Đóng gói / Giấy tờ ch
 npm install
 docker compose -f infra/docker-compose.yml up -d postgres
 cp infra/.env.example infra/.env   # rồi điền DATABASE_URL, AUTH_SECRET, AMIS_APP_ID, AMIS_CLIENT_SECRET
+```
+
+Next.js (`next dev`) và Prisma CLI mỗi cái đọc biến môi trường từ 1 file `.env` riêng trong thư mục của chính nó, không đọc trực tiếp `infra/.env` — sau khi điền xong `infra/.env`, sao chép cùng nội dung sang 2 nơi sau:
+
+```bash
+cp infra/.env apps/web/.env.local
+cp infra/.env packages/db/.env
+```
+
+Rồi chạy:
+
+```bash
 npm run prisma:migrate -- --name init
 npm run db:seed
 npm run dev
