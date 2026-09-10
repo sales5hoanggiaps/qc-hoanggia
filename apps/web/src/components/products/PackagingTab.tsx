@@ -22,6 +22,15 @@ export function PackagingTab({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function handleCancel() {
+    // Xem giải thích trong TCSPTab: component không unmount khi Huỷ nên phải tự reset state cục
+    // bộ về giá trị đã lưu (props), nếu không lần sửa bỏ dở còn nguyên khi vào lại chế độ sửa.
+    setInstructions(packaging?.instructions ?? "");
+    setSpecialNotes(packaging?.specialNotes ?? "");
+    setError(null);
+    onDoneEditing();
+  }
+
   async function handleSave() {
     setSaving(true);
     setError(null);
@@ -60,7 +69,7 @@ export function PackagingTab({
         <button onClick={handleSave} disabled={saving} className="rounded bg-brand-600 px-4 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50">
           {saving ? "Đang lưu..." : "Lưu"}
         </button>
-        <button onClick={onDoneEditing} className="rounded border px-4 py-1.5 text-sm hover:bg-gray-50">Huỷ</button>
+        <button onClick={handleCancel} className="rounded border px-4 py-1.5 text-sm hover:bg-gray-50">Huỷ</button>
       </div>
     </div>
   );

@@ -56,6 +56,31 @@ export function TCSPTab({
     setRows(rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
   }
 
+  function handleCancel() {
+    // "Huỷ" chỉ báo cho component cha rời chế độ sửa — nhưng component TCSPTab vẫn ở nguyên trong
+    // cây (không unmount), nên state cục bộ (input) sống sót qua lần Huỷ. Phải tự đưa state về
+    // đúng giá trị từ props (đã lưu) trước khi thoát, nếu không lần sửa bỏ dở sẽ còn nguyên khi
+    // vào lại chế độ sửa, và có thể bị lưu nhầm như một chỉnh sửa mới.
+    setMaterialCode(tcsp?.materialCode ?? "");
+    setDescription(tcsp?.description ?? "");
+    setPreparedBy(tcsp?.preparedBy ?? "");
+    setApprovedBy(tcsp?.approvedBy ?? "");
+    setApprovedAt(tcsp?.approvedAt ? tcsp.approvedAt.toISOString().slice(0, 10) : "");
+    setRows(
+      (tcsp?.specRows ?? []).map((r) => ({
+        groupName: r.groupName,
+        criterion: r.criterion,
+        value: r.value,
+        tolerance: r.tolerance ?? "",
+        unit: r.unit ?? "",
+        note: r.note ?? "",
+        sortOrder: r.sortOrder,
+      }))
+    );
+    setError(null);
+    onDoneEditing();
+  }
+
   async function handleSave() {
     setSaving(true);
     setError(null);
@@ -155,7 +180,7 @@ export function TCSPTab({
         <button onClick={handleSave} disabled={saving} className="rounded bg-brand-600 px-4 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50">
           {saving ? "Đang lưu..." : "Lưu"}
         </button>
-        <button onClick={onDoneEditing} className="rounded border px-4 py-1.5 text-sm hover:bg-gray-50">Huỷ</button>
+        <button onClick={handleCancel} className="rounded border px-4 py-1.5 text-sm hover:bg-gray-50">Huỷ</button>
       </div>
     </div>
   );
