@@ -126,13 +126,19 @@ export function VersionBanner({
 - [ ] **Step 3: Write `apps/web/src/app/(dashboard)/products/[baseCode]/page.tsx`**
 
 ```tsx
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getProductDetail } from "@/lib/products/get-product-detail";
 import { ProductDetailTabs } from "@/components/products/ProductDetailTabs";
 
 export default async function ProductDetailPage({ params }: { params: { baseCode: string } }) {
   const session = await auth();
+  // Middleware already requires a session for every route under (dashboard), but don't rely on
+  // that alone here — fail safe with an explicit redirect instead of a non-null assertion
+  // (a Foundation-phase final review flagged the same `session!` pattern elsewhere as worth
+  // avoiding; this plan follows that guidance in new code rather than repeating it).
+  if (!session) redirect("/login");
+
   const product = await getProductDetail(params.baseCode);
   if (!product || !product.currentVersion) notFound();
 
@@ -144,7 +150,7 @@ export default async function ProductDetailPage({ params }: { params: { baseCode
       <p className="mb-4 text-sm text-gray-500">
         {product.category?.name ?? "Chưa phân loại"} · Trạng thái: {product.status}
       </p>
-      <ProductDetailTabs product={product} role={session!.user.role} />
+      <ProductDetailTabs product={product} role={session.user.role} />
     </div>
   );
 }
