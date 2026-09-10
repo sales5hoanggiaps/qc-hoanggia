@@ -99,18 +99,25 @@ describe("upsertProductFromAmis", () => {
     // là chuỗi hợp lệ với regex (<=4 chữ cái + 4-7 chữ số); việc dọn dẹp
     // vẫn được đảm bảo vì amisProductId (không bị ràng buộc bởi regex) vẫn
     // bắt đầu bằng `amis-${testBaseCode}` như afterEach ở trên mong đợi.
+    //
+    // Lưu ý (sau Fix 1): founding version giờ dùng đúng hậu tố `.N` thật của
+    // AMIS làm versionNumber thay vì 1 bộ đếm giả — nên ở đây founding bằng
+    // mã `.1` (versionNumber=1) rồi phiên bản kế tiếp dùng `.2` (versionNumber=2),
+    // thay vì founding bằng mã TRẦN (sẽ tự nhận versionNumber=1 y hệt, gây
+    // đụng độ giả tạo với `.1` — xem Fix 1 report).
     const versionBaseCode = `ZZ${String(Date.now()).slice(-6)}`;
 
     await upsertProductFromAmis({
       amisProductId: baseAmisId,
-      code: versionBaseCode,
-      name: "Bản gốc",
+      code: `${versionBaseCode}.1`,
+      name: "Bản gốc (v1)",
       description: null,
     });
     const base = await prisma.product.findUnique({
       where: { baseCode: versionBaseCode },
       include: { currentVersion: true },
     });
+    expect(base?.currentVersion?.versionNumber).toBe(1);
     // Giả lập Admin đã nhập nội dung QC vào phiên bản 1
     await prisma.qCData.create({
       data: { versionId: base!.currentVersion!.id, checklist: "Đã kiểm tra kích thước" },
@@ -118,8 +125,8 @@ describe("upsertProductFromAmis", () => {
 
     const result = await upsertProductFromAmis({
       amisProductId: `${baseAmisId}-2`,
-      code: `${versionBaseCode}.1`,
-      name: "Bản gốc (v1)",
+      code: `${versionBaseCode}.2`,
+      name: "Bản gốc (v2)",
       description: null,
     });
     expect(result.kind).toBe("new_version");
@@ -159,24 +166,27 @@ describe("upsertProductFromAmis", () => {
     //
     // Fix: kiểm tra tồn tại bằng ProductVersion.amisProductId (được set trên
     // MỌI version, không riêng version đầu) thay vì Product.amisProductId.
+    //
+    // Lưu ý (sau Fix 1): founding dùng mã `.1` (versionNumber=1 thật) thay vì
+    // mã trần, để mã `.2` kế tiếp không đụng độ số phiên bản (xem Fix 1 report).
     const baseAmisId = `amis-${testBaseCode}-dup2-v1`;
     const versionBaseCode = `ZY${String(Date.now()).slice(-6)}`;
 
-    // Lần 1: tạo baseCode gốc (version 1).
+    // Lần 1: tạo baseCode gốc (version 1, mã `.1`).
     await upsertProductFromAmis({
       amisProductId: baseAmisId,
-      code: versionBaseCode,
-      name: "Bản gốc",
+      code: `${versionBaseCode}.1`,
+      name: "Bản gốc (v1)",
       description: null,
     });
 
     // Lần 2: mã version-suffixed (vd từ đơn hàng #1) — tạo ProductVersion số 2.
     const versionedAmisId = `${baseAmisId}-2`;
-    const versionedCode = `${versionBaseCode}.1`;
+    const versionedCode = `${versionBaseCode}.2`;
     const firstResult = await upsertProductFromAmis({
       amisProductId: versionedAmisId,
       code: versionedCode,
-      name: "Bản gốc (v1)",
+      name: "Bản gốc (v2)",
       description: null,
     });
     expect(firstResult.kind).toBe("new_version");
@@ -251,5 +261,128 @@ describe("upsertProductFromAmis", () => {
     const versionCountAfter = await prisma.productVersion.count({ where: { productId: product!.id } });
     expect(productCountAfter).toBe(1);
     expect(versionCountAfter).toBe(1);
+  });
+
+  it("mã .2 được xử lý TRƯỚC (thành current, versionNumber=2), sau đó mã .1 mới xuất hiện — không được ghi đè currentVersion đang có (fix: dùng đúng hậu tố .N thật của AMIS làm versionNumber, không phải bộ đếm theo thứ tự sync)", async () => {
+    const baseAmisId = `amis-${testBaseCode}-order-v2first`;
+    const versionBaseCode = `ZW${String(Date.now()).slice(-6)}`;
+
+    const firstResult = await upsertProductFromAmis({
+      amisProductId: `${baseAmisId}-2`,
+      code: `${versionBaseCode}.2`,
+      name: "Bản .2",
+      description: null,
+    });
+    expect(firstResult.kind).toBe("created");
+
+    const afterFirst = await prisma.product.findUnique({
+      where: { baseCode: versionBaseCode },
+      include: { currentVersion: true },
+    });
+    expect(afterFirst?.currentVersion?.versionNumber).toBe(2);
+
+    const secondResult = await upsertProductFromAmis({
+      amisProductId: `${baseAmisId}-1`,
+      code: `${versionBaseCode}.1`,
+      name: "Bản .1 (xuất hiện sau nhưng là bản CŨ hơn)",
+      description: null,
+    });
+    expect(secondResult.kind).toBe("new_version");
+
+    const afterSecond = await prisma.product.findUnique({
+      where: { baseCode: versionBaseCode },
+      include: { currentVersion: true },
+    });
+    // currentVersion PHẢI vẫn là phiên bản .2 (versionNumber=2) — không bị mã .1 (cũ hơn) ghi đè.
+    expect(afterSecond?.currentVersion?.versionNumber).toBe(2);
+
+    const olderVersion = await prisma.productVersion.findFirst({
+      where: { productId: afterSecond!.id, versionNumber: 1 },
+    });
+    // Vẫn tạo bản ghi ProductVersion số 1 (để xem trong Lịch sử phiên bản sau này), chỉ không phải currentVersion.
+    expect(olderVersion).not.toBeNull();
+    expect(olderVersion?.isCurrent).toBe(false);
+  });
+
+  it("mã .1 được xử lý trước, sau đó mã .5 xuất hiện — currentVersion chuyển sang .5 (chiều thuận, vẫn phải hoạt động đúng)", async () => {
+    const baseAmisId = `amis-${testBaseCode}-order-v1first`;
+    const versionBaseCode = `ZV${String(Date.now()).slice(-6)}`;
+
+    await upsertProductFromAmis({
+      amisProductId: `${baseAmisId}-1`,
+      code: `${versionBaseCode}.1`,
+      name: "Bản .1",
+      description: null,
+    });
+
+    const result = await upsertProductFromAmis({
+      amisProductId: `${baseAmisId}-5`,
+      code: `${versionBaseCode}.5`,
+      name: "Bản .5",
+      description: null,
+    });
+    expect(result.kind).toBe("new_version");
+
+    const product = await prisma.product.findUnique({
+      where: { baseCode: versionBaseCode },
+      include: { currentVersion: true },
+    });
+    expect(product?.currentVersion?.versionNumber).toBe(5);
+  });
+
+  it("mã hoàn toàn mới mà lần xuất hiện đầu tiên đã có hậu tố .3 — versionNumber sáng lập phải là 3, không bị đánh số lại thành 1", async () => {
+    const baseAmisId = `amis-${testBaseCode}-firstseen-v3`;
+    const versionBaseCode = `ZT${String(Date.now()).slice(-6)}`;
+
+    const result = await upsertProductFromAmis({
+      amisProductId: baseAmisId,
+      code: `${versionBaseCode}.3`,
+      name: "Bản .3 (lần đầu thấy trong dữ liệu năm nay)",
+      description: null,
+    });
+    expect(result.kind).toBe("created");
+
+    const product = await prisma.product.findUnique({
+      where: { baseCode: versionBaseCode },
+      include: { currentVersion: true },
+    });
+    expect(product?.currentVersion?.versionNumber).toBe(3);
+    expect(product?.currentVersion?.isCurrent).toBe(true);
+  });
+
+  it("mã TRẦN founding versionNumber=1, rồi mã CÓ hậu tố .1 thật của cùng gốc xuất hiện sau — 2 cách viết của CÙNG 1 phiên bản, không được tạo dòng trùng hay ném lỗi unique constraint (phát hiện trên dữ liệu thật, vd baseCode SI07276)", async () => {
+    const baseAmisId = `amis-${testBaseCode}-barefirst-v1`;
+    const versionBaseCode = `ZS${String(Date.now()).slice(-6)}`;
+
+    const bareResult = await upsertProductFromAmis({
+      amisProductId: baseAmisId,
+      code: versionBaseCode,
+      name: "Bản gốc (mã trần)",
+      description: null,
+    });
+    expect(bareResult.kind).toBe("created");
+
+    const afterBare = await prisma.product.findUnique({
+      where: { baseCode: versionBaseCode },
+      include: { currentVersion: true },
+    });
+    expect(afterBare?.currentVersion?.versionNumber).toBe(1);
+
+    const suffixedResult = await upsertProductFromAmis({
+      amisProductId: `${baseAmisId}-suffixed`,
+      code: `${versionBaseCode}.1`,
+      name: "Bản gốc (mã .1)",
+      description: null,
+    });
+    // Không có gì mới để ghi — cùng 1 khái niệm phiên bản 1, chỉ viết mã khác đi.
+    expect(suffixedResult.kind).toBe("linked_existing");
+
+    const afterSuffixed = await prisma.product.findUnique({
+      where: { baseCode: versionBaseCode },
+      include: { currentVersion: true },
+    });
+    expect(afterSuffixed?.currentVersion?.versionNumber).toBe(1);
+    const versionCount = await prisma.productVersion.count({ where: { productId: afterSuffixed!.id } });
+    expect(versionCount).toBe(1); // không tạo thêm dòng ProductVersion nào
   });
 });
