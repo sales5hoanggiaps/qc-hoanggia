@@ -4,6 +4,7 @@ import { useState } from "react";
 import { UserRole } from "@qc/db";
 import type { ProductDetail } from "@/lib/products/get-product-detail";
 import { TCSPTab } from "./TCSPTab";
+import { QCTab } from "./QCTab";
 
 const TABS = ["Tiêu chuẩn sản phẩm", "QC sản phẩm", "Quy cách đóng gói", "Giấy tờ sản phẩm", "Lịch sử phiên bản"] as const;
 type TabName = (typeof TABS)[number];
@@ -44,7 +45,9 @@ export function ProductDetailTabs({ product, role }: { product: ProductDetail; r
         {activeTab === "Tiêu chuẩn sản phẩm" && (
           <TCSPTab product={product} editing={editing && activeTab === "Tiêu chuẩn sản phẩm"} onDoneEditing={() => setEditing(false)} />
         )}
-        {activeTab === "QC sản phẩm" && <div data-testid="tab-qc">(QC — Task 3)</div>}
+        {activeTab === "QC sản phẩm" && (
+          <QCTab product={product} editing={editing && activeTab === "QC sản phẩm"} onDoneEditing={() => setEditing(false)} />
+        )}
         {activeTab === "Quy cách đóng gói" && <div data-testid="tab-packaging">(Đóng gói — Task 4)</div>}
         {activeTab === "Giấy tờ sản phẩm" && <div data-testid="tab-documents">(Giấy tờ — Task 5)</div>}
         {activeTab === "Lịch sử phiên bản" && <div data-testid="tab-history">(Lịch sử — Task 6)</div>}
