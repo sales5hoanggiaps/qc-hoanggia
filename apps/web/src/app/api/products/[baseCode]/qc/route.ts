@@ -19,6 +19,10 @@ export async function PATCH(req: Request, { params }: { params: { baseCode: stri
     if (err instanceof ForbiddenError) return NextResponse.json({ error: err.message }, { status: 403 });
     throw err;
   }
+  // Không dùng `session!.user.id` — assertRole ở trên đã ném lỗi nếu role/session không hợp lệ,
+  // nhưng TypeScript chưa thu hẹp được điều đó qua try/catch; guard tường minh này thay cho `!`
+  // (theo ruling của Task 1 trong SDD ledger của plan này).
+  if (!session) return NextResponse.json({ error: "Không đủ quyền truy cập" }, { status: 403 });
 
   const product = await prisma.product.findUnique({ where: { baseCode: params.baseCode } });
   if (!product || !product.currentVersionId) {
@@ -42,7 +46,7 @@ export async function PATCH(req: Request, { params }: { params: { baseCode: stri
   const changes = diffFields(prev, next);
 
   await prisma.qCData.upsert({ where: { versionId }, update: next, create: { versionId, ...next } });
-  await recordChanges(versionId, session!.user.id, changes);
+  await recordChanges(versionId, session.user.id, changes);
 
   return NextResponse.json({ ok: true });
 }
