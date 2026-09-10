@@ -1,0 +1,51 @@
+"use client";
+
+import { useState } from "react";
+import { UserRole } from "@qc/db";
+import type { ProductDetail } from "@/lib/products/get-product-detail";
+
+const TABS = ["Tiêu chuẩn sản phẩm", "QC sản phẩm", "Quy cách đóng gói", "Giấy tờ sản phẩm", "Lịch sử phiên bản"] as const;
+type TabName = (typeof TABS)[number];
+
+export function ProductDetailTabs({ product, role }: { product: ProductDetail; role: UserRole }) {
+  const [activeTab, setActiveTab] = useState<TabName>("Tiêu chuẩn sản phẩm");
+  const [editing, setEditing] = useState(false);
+  const canEdit = role === UserRole.MANAGER || role === UserRole.ADMIN;
+  const editableTabs: TabName[] = ["Tiêu chuẩn sản phẩm", "QC sản phẩm", "Quy cách đóng gói"];
+  const showEditButton = canEdit && editableTabs.includes(activeTab) && !editing;
+
+  function switchTab(tab: TabName) {
+    setActiveTab(tab);
+    setEditing(false);
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between border-b">
+        <nav className="flex gap-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => switchTab(tab)}
+              className={`px-3 py-2 text-sm ${activeTab === tab ? "border-b-2 border-brand-600 font-medium" : "text-gray-500"}`}
+            >
+              {tab}
+            </button>
+          ))}
+        </nav>
+        {showEditButton && (
+          <button onClick={() => setEditing(true)} className="mb-1 rounded bg-brand-600 px-3 py-1 text-sm text-white hover:bg-brand-700">
+            Chỉnh sửa
+          </button>
+        )}
+      </div>
+      <div className="py-4">
+        {activeTab === "Tiêu chuẩn sản phẩm" && <div data-testid="tab-tcsp">(TCSP — Task 2)</div>}
+        {activeTab === "QC sản phẩm" && <div data-testid="tab-qc">(QC — Task 3)</div>}
+        {activeTab === "Quy cách đóng gói" && <div data-testid="tab-packaging">(Đóng gói — Task 4)</div>}
+        {activeTab === "Giấy tờ sản phẩm" && <div data-testid="tab-documents">(Giấy tờ — Task 5)</div>}
+        {activeTab === "Lịch sử phiên bản" && <div data-testid="tab-history">(Lịch sử — Task 6)</div>}
+      </div>
+    </div>
+  );
+}
