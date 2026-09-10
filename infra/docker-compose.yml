@@ -24,10 +24,26 @@ services:
       # for local `npm run dev`) refers to the web container itself here
       # and would not connect.
       DATABASE_URL: postgresql://qc:qc_dev_password@postgres:5432/qc_hoanggia
+      # Same reasoning as DATABASE_URL above: inside the Compose network the
+      # worker is reachable at the service name "worker" on its container
+      # port 4100 — "localhost:4100" (used for local `npm run dev`) would
+      # refer to the web container itself here.
+      SYNC_WORKER_URL: http://worker:4100
     depends_on:
       - postgres
     ports:
       - "3100:3000"
+
+  worker:
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://qc:qc_dev_password@postgres:5432/qc_hoanggia
+    depends_on:
+      - postgres
 
 volumes:
   qc_postgres_data:
