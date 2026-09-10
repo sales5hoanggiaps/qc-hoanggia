@@ -114,6 +114,103 @@ describe("runAmisSync", () => {
     expect(link?.lastOrderDate?.toISOString()).toBe(new Date("2026-08-15T00:00:00.000+07:00").toISOString());
   });
 
+  it("tạo ProductCustomer cho đơn hàng THỨ HAI khi mã hàng của đơn đó resolve ra CÙNG Product qua nhánh new_version/linked_existing (không phải qua Product.amisProductId của chính mã đó)", async () => {
+    // Tái hiện đúng lỗi: run-sync trước đây re-lookup Product bằng
+    // `prisma.product.findUnique({ where: { amisProductId } })` dùng
+    // amisProductId CỦA CHÍNH mapping hiện tại. Nhưng Product.amisProductId
+    // chỉ giữ mã của phiên bản ĐẦU TIÊN (founding), không bao giờ được cập
+    // nhật khi có ProductVersion mới. Vì vậy khi đơn hàng thứ 2 dùng 1 mã
+    // có hậu tố version (vd "<base>.1") khác với mã đã founding Product (vd
+    // "<base>"), amisProductId của đơn hàng thứ 2 KHÔNG khớp Product.amisProductId
+    // — re-lookup trả về null — toàn bộ khối tạo ProductCustomer, tăng
+    // updatedLinks, và kiểm tra flagged-review cho mapping đó bị bỏ qua âm
+    // thầm, không lỗi, không log.
+    //
+    // Kịch bản test: đơn hàng #1 dùng mã gốc (founding Product, version 1).
+    // Đơn hàng #2 (khách hàng khác) dùng mã có hậu tố version của CÙNG gốc đó
+    // — upsertProductFromAmis đi vào nhánh "new_version" (tạo ProductVersion
+    // #2 của CÙNG Product), trả về result.productId = Product.id gốc — chứ
+    // KHÔNG có Product nào có amisProductId trùng với mã của đơn hàng #2.
+    // Trước khi fix: ProductCustomer cho khách hàng #2 sẽ KHÔNG được tạo
+    // (bug). Sau khi fix: PHẢI được tạo, vì run-sync giờ dùng thẳng
+    // result.productId thay vì re-lookup qua amisProductId.
+    const versionBaseCode = `TR${String(Date.now()).slice(-6)}`;
+
+    mockAmisResponses(
+      [
+        {
+          id: 701,
+          sale_order_no: "SO-TEST-FOUND",
+          account_name: "Khách hàng Test A",
+          sale_order_date: "2026-04-01T00:00:00.000+07:00",
+          modified_date: "2026-04-02T00:00:00.000+07:00",
+          organization_unit_name: "Phòng kinh doanh I",
+          sale_order_product_mappings: [
+            { product_code: versionBaseCode, description: "Sản phẩm test v1", custom_field3: null },
+          ],
+        },
+        {
+          id: 702,
+          sale_order_no: "SO-TEST-NEWVER",
+          account_name: "Khách hàng Test B",
+          sale_order_date: "2026-05-01T00:00:00.000+07:00",
+          modified_date: "2026-04-01T00:00:00.000+07:00",
+          organization_unit_name: "Phòng kinh doanh I",
+          sale_order_product_mappings: [
+            { product_code: `${versionBaseCode}.1`, description: "Sản phẩm test v2", custom_field3: null },
+          ],
+        },
+      ],
+      [
+        { id: 99993, account_name: "Khách hàng Test A" },
+        { id: 99994, account_name: "Khách hàng Test B" },
+      ]
+    );
+
+    const result = await runAmisSync();
+
+    const syncLog = await prisma.syncLog.findUnique({ where: { id: result.syncLogId } });
+    expect(syncLog?.errorMessage).toBeNull();
+    expect(result.newVersions).toBe(1);
+
+    const product = await prisma.product.findUnique({
+      where: { baseCode: versionBaseCode },
+      include: { currentVersion: true },
+    });
+    expect(product).not.toBeNull();
+    expect(product?.currentVersion?.versionNumber).toBe(2);
+
+    const customerA = await prisma.customer.findUnique({ where: { amisCustomerId: "99993" } });
+    const customerB = await prisma.customer.findUnique({ where: { amisCustomerId: "99994" } });
+    expect(customerA).not.toBeNull();
+    expect(customerB).not.toBeNull();
+
+    const linkA = await prisma.productCustomer.findUnique({
+      where: { productId_customerId: { productId: product!.id, customerId: customerA!.id } },
+    });
+    const linkB = await prisma.productCustomer.findUnique({
+      where: { productId_customerId: { productId: product!.id, customerId: customerB!.id } },
+    });
+    expect(linkA).not.toBeNull();
+    // This is the assertion that would have failed before the fix: linkB
+    // would be null because the old code's re-lookup by amisProductId (built
+    // from the SECOND order's own code, "<base>.1") never matches
+    // Product.amisProductId (still the founding "<base>" code).
+    expect(linkB).not.toBeNull();
+
+    // Dọn dẹp thủ công: baseCode ("TR......") không bắt đầu bằng "TESTRUN"
+    // (bắt buộc vì phải khớp regex parseVersionSuffix cho mã có hậu tố
+    // version), nên afterEach chung của file này (lọc theo baseCode
+    // startsWith "TESTRUN") không tự dọn được Product/ProductVersion này —
+    // phải xoá đúng thứ tự FK ở đây (ChangeLogEntry -> ProductCustomer ->
+    // ProductVersion -> Product); Customer được afterEach dọn qua tiền tố
+    // amisCustomerId "9999".
+    await prisma.changeLogEntry.deleteMany({ where: { version: { productId: product!.id } } });
+    await prisma.productCustomer.deleteMany({ where: { productId: product!.id } });
+    await prisma.productVersion.deleteMany({ where: { productId: product!.id } });
+    await prisma.product.delete({ where: { id: product!.id } });
+  });
+
   it("ghi SyncLog với errorMessage và không crash khi AMIS lỗi kết nối", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => {
       throw new Error("network unreachable (test)");

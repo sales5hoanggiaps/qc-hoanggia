@@ -8,7 +8,7 @@ export interface UpsertProductInput {
   description: string | null;
 }
 
-export type UpsertResult = { kind: "created" | "new_version" | "linked_existing" };
+export type UpsertResult = { kind: "created" | "new_version" | "linked_existing"; productId: string };
 
 /** Sao chép nội dung 4 mục từ 1 ProductVersion sang 1 ProductVersion mới (cùng dữ liệu, khoá ngoại mới). */
 async function cloneVersionContent(fromVersionId: string, toVersionId: string) {
@@ -86,7 +86,7 @@ async function cloneVersionContent(fromVersionId: string, toVersionId: string) {
 export async function upsertProductFromAmis(input: UpsertProductInput): Promise<UpsertResult> {
   const existingVersion = await prisma.productVersion.findUnique({ where: { amisProductId: input.amisProductId } });
   if (existingVersion) {
-    return { kind: "linked_existing" };
+    return { kind: "linked_existing", productId: existingVersion.productId };
   }
 
   const parsed = parseVersionSuffix(input.code);
@@ -102,7 +102,7 @@ export async function upsertProductFromAmis(input: UpsertProductInput): Promise<
     // trước đó trong cùng lần sync (mã trần xuất hiện sau, ở 1 đơn hàng
     // khác). Không có gì mới để tạo — không tạo thêm Product hay
     // ProductVersion, tránh đụng unique constraint Product.baseCode.
-    return { kind: "linked_existing" };
+    return { kind: "linked_existing", productId: existingBase.id };
   }
 
   if (parsed && existingBase && existingBase.currentVersion) {
@@ -130,7 +130,7 @@ export async function upsertProductFromAmis(input: UpsertProductInput): Promise<
         source: "AMIS_SYNC",
       },
     });
-    return { kind: "new_version" };
+    return { kind: "new_version", productId: existingBase.id };
   }
 
   // Mã hoàn toàn mới (không khớp mẫu phiên bản, hoặc baseCode chưa từng thấy).
@@ -153,5 +153,5 @@ export async function upsertProductFromAmis(input: UpsertProductInput): Promise<
     },
   });
   await prisma.product.update({ where: { id: product.id }, data: { currentVersionId: version.id } });
-  return { kind: "created" };
+  return { kind: "created", productId: product.id };
 }

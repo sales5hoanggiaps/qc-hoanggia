@@ -52,7 +52,6 @@ export async function runAmisSync(): Promise<RunSyncResult> {
         if (!mapping.product_code) continue;
         const amisProductId = `code:${mapping.product_code}`; // xem "Cannot verify" note trong report Task 4
 
-        const existing = await prisma.product.findUnique({ where: { amisProductId } });
         const result = await upsertProductFromAmis({
           amisProductId,
           code: mapping.product_code,
@@ -63,42 +62,45 @@ export async function runAmisSync(): Promise<RunSyncResult> {
         if (result.kind === "new_version") newVersions++;
 
         if (customerId) {
-          const product = await prisma.product.findUnique({ where: { amisProductId } });
-          if (product) {
-            const orderDate = order.sale_order_date ? new Date(order.sale_order_date) : null;
-            const existingLink = await prisma.productCustomer.findUnique({
-              where: { productId_customerId: { productId: product.id, customerId } },
-            });
-            // Đơn hàng được fetch theo thứ tự modified_date giảm dần (không liên quan đến
-            // thứ tự sale_order_date), nên không được ghi đè lastOrderDate một cách vô điều
-            // kiện — chỉ cập nhật khi ngày của đơn hàng hiện tại mới hơn giá trị đã lưu.
-            const lastOrderDate =
-              existingLink?.lastOrderDate && orderDate
-                ? existingLink.lastOrderDate > orderDate
-                  ? existingLink.lastOrderDate
-                  : orderDate
-                : (orderDate ?? existingLink?.lastOrderDate ?? null);
-            await prisma.productCustomer.upsert({
-              where: { productId_customerId: { productId: product.id, customerId } },
-              update: { lastOrderDate },
-              create: {
-                productId: product.id,
-                customerId,
-                lastOrderDate,
-              },
-            });
-            updatedLinks++;
-          }
+          const orderDate = order.sale_order_date ? new Date(order.sale_order_date) : null;
+          const existingLink = await prisma.productCustomer.findUnique({
+            where: { productId_customerId: { productId: result.productId, customerId } },
+          });
+          // Đơn hàng được fetch theo thứ tự modified_date giảm dần (không liên quan đến
+          // thứ tự sale_order_date), nên không được ghi đè lastOrderDate một cách vô điều
+          // kiện — chỉ cập nhật khi ngày của đơn hàng hiện tại mới hơn giá trị đã lưu.
+          const lastOrderDate =
+            existingLink?.lastOrderDate && orderDate
+              ? existingLink.lastOrderDate > orderDate
+                ? existingLink.lastOrderDate
+                : orderDate
+              : (orderDate ?? existingLink?.lastOrderDate ?? null);
+          await prisma.productCustomer.upsert({
+            where: { productId_customerId: { productId: result.productId, customerId } },
+            update: { lastOrderDate },
+            create: {
+              productId: result.productId,
+              customerId,
+              lastOrderDate,
+            },
+          });
+          updatedLinks++;
         }
 
-        if (existing && result.kind === "linked_existing" && existing.status !== "PENDING_QC") {
-          // Mã đã có nội dung QC, không có phiên bản mới, nhưng tên/mô tả từ đơn hàng gần nhất
-          // khác dữ liệu đang lưu — gắn cờ chứ không tự sửa (spec §6 bước 5).
-          const currentVersion = await prisma.productVersion.findUnique({
-            where: { id: existing.currentVersionId ?? "" },
-          });
-          if (currentVersion && currentVersion.name !== (mapping.description || mapping.product_code)) {
-            flaggedReview++;
+        if (result.kind === "linked_existing") {
+          // Mã đã tồn tại từ trước (không tạo Product/ProductVersion mới trong lần gọi
+          // này) — kiểm tra xem tên/mô tả từ đơn hàng gần nhất có khác dữ liệu đang lưu
+          // không, để gắn cờ chứ không tự sửa (spec §6 bước 5). Chỉ áp dụng khi Product
+          // đã có nội dung QC (không còn PENDING_QC) — mã mới toanh (PENDING_QC) chưa có
+          // gì để so sánh/bảo vệ.
+          const existingProduct = await prisma.product.findUnique({ where: { id: result.productId } });
+          if (existingProduct && existingProduct.status !== "PENDING_QC") {
+            const currentVersion = await prisma.productVersion.findUnique({
+              where: { id: existingProduct.currentVersionId ?? "" },
+            });
+            if (currentVersion && currentVersion.name !== (mapping.description || mapping.product_code)) {
+              flaggedReview++;
+            }
           }
         }
       }
