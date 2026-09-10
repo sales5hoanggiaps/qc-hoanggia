@@ -15,7 +15,12 @@ export async function getProductDetail(baseCode: string) {
       },
       versions: {
         orderBy: { versionNumber: "desc" },
-        include: { changeLogs: { orderBy: { changedAt: "desc" } } },
+        include: {
+          changeLogs: { orderBy: { changedAt: "desc" } },
+          tcsp: true,
+          qc: true,
+          packaging: true,
+        },
       },
     },
   });
