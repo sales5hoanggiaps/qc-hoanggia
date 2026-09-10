@@ -1,4 +1,4 @@
-import { prisma } from "@qc/db";
+import { prisma, type PrismaTransactionClient } from "@qc/db";
 
 export interface FieldChange {
   fieldPath: string;
@@ -20,9 +20,18 @@ export function diffFields<T extends Record<string, string | null>>(before: T | 
   return changes;
 }
 
-export async function recordChanges(versionId: string, changedBy: string, changes: FieldChange[]): Promise<void> {
+/** `tx` (tuỳ chọn): client transaction Prisma để ghi log atomic cùng các thay đổi khác trong cùng
+ * `prisma.$transaction(...)` gọi hàm này — bỏ trống thì dùng `prisma` toàn cục như trước (không đổi
+ * hành vi các call site hiện có, xem TCSPTab task fix-wave). */
+export async function recordChanges(
+  versionId: string,
+  changedBy: string,
+  changes: FieldChange[],
+  tx?: PrismaTransactionClient
+): Promise<void> {
   if (changes.length === 0) return;
-  await prisma.changeLogEntry.createMany({
+  const client = tx ?? prisma;
+  await client.changeLogEntry.createMany({
     data: changes.map((c) => ({
       versionId,
       fieldPath: c.fieldPath,
