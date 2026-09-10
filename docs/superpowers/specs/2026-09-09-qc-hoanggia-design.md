@@ -281,9 +281,20 @@ model SyncLog {
 
 ## 7. Quản lý nội dung 4 mục & Media
 
-- Trang chi tiết mã hàng có 5 tab: **Tiêu chuẩn sản phẩm, QC sản phẩm, Quy cách đóng gói, Giấy tờ sản phẩm, Lịch sử phiên bản** — luôn hiển thị `currentVersion`, có link chuyển sang xem phiên bản cũ (chỉ đọc, không sửa được phiên bản cũ).
-- MANAGER/ADMIN sửa nội dung qua form riêng cho từng tab; mỗi lần lưu thay đổi ghi thêm `ChangeLogEntry` nguồn `MANUAL` (field, giá trị cũ/mới, người sửa).
+**Chia làm 2 plan triển khai (chốt 2026-09-10):** Plan 3a "Nội dung & Lịch sử" (trang chi tiết 5 tab, form sửa văn bản, tab Lịch sử) trước; Plan 3b "Media & xuất file" (upload ảnh/video/tài liệu, xuất Excel TCSP) sau, xây trên nền 3a.
+
+**Route (Plan 3a):** `/products/[baseCode]` — trang chi tiết mã hàng, mặc định hiển thị `currentVersion`. Xem phiên bản cũ qua `/products/[baseCode]/v/[versionNumber]` (chỉ đọc, không có nút Chỉnh sửa).
+
+- Trang chi tiết mã hàng có 5 tab: **Tiêu chuẩn sản phẩm, QC sản phẩm, Quy cách đóng gói, Giấy tờ sản phẩm, Lịch sử phiên bản**.
+- **Chế độ xem/sửa:** mỗi tab (trừ Lịch sử) mặc định ở chế độ xem; MANAGER/ADMIN thấy nút "Chỉnh sửa" để chuyển sang form sửa (tránh sửa nhầm), có nút Lưu/Huỷ. QC_STAFF chỉ có chế độ xem. Mỗi lần Lưu ghi thêm `ChangeLogEntry` nguồn `MANUAL` (field, giá trị cũ/mới, người sửa) — hiển thị ở tab Lịch sử phiên bản cùng danh sách `ProductVersion` (số hiệu, ngày tạo, nguồn AMIS_SYNC/MANUAL).
+- Tab TCSP: form gồm mô tả, mã NL, người lập/duyệt + bảng `TCSPSpecRow` (nhóm Kích thước/TC khác) cho thêm/xoá dòng động.
+- Tab QC / Đóng gói (Plan 3a): form văn bản đơn giản (textarea nhiều dòng cho checklist/lỗi từng gặp/lưu ý) — chưa cần rich text editor.
+- Tab Giấy tờ sản phẩm (Plan 3a): hiển thị khung danh sách file (rỗng, vì upload chưa có ở 3a) — UI sẵn sàng nhận dữ liệu khi Plan 3b thêm upload.
+- **Lưu ý an toàn khi sửa nội dung (liên quan phát hiện mục 12 về mã AMIS bị dùng lại/rơi phiên bản):** form sửa PHẢI hiển thị rõ `versionNumber`/mã AMIS gốc (`.N`) của phiên bản đang xem ngay trên đầu trang, để Quản trị viên nhận ra nếu nội dung "kế thừa" từ 1 phiên bản trước có vẻ không khớp (vd tên sản phẩm đổi khác hẳn) — đây là hàng rào tối thiểu cho tới khi có cảnh báo tự động (chưa làm ở Plan 3a/3b).
+
+**Media (Plan 3b — chưa thiết kế chi tiết, để brainstorm riêng khi bắt đầu):**
 - Mỗi tab TCSP/QC/Đóng gói có khu upload nhiều ảnh/video (`MediaAsset`), có chú thích + sắp xếp thứ tự; tab Giấy tờ sản phẩm upload file tài liệu phân loại COA/MSDS/ROHS/Khác (`ProductDocument`).
+- **Lưu trữ: MinIO tự host trong Docker** (chốt 2026-09-10 — cùng triết lý portable/không phụ thuộc nơi triển khai đã theo từ đầu dự án, không cần tài khoản/chi phí bên ngoài).
 - Upload qua presigned URL lên object storage (client upload thẳng, tránh tải qua server app); giới hạn ảnh ~10MB, video ~200MB (mp4).
 - Xem/tải file: server sinh link ký hết hạn ngắn (vài phút) mỗi khi trang được mở bởi người dùng đã đăng nhập — không có link công khai vĩnh viễn.
 
