@@ -126,8 +126,9 @@ describe("runAmisSync", () => {
     // updatedLinks, và kiểm tra flagged-review cho mapping đó bị bỏ qua âm
     // thầm, không lỗi, không log.
     //
-    // Kịch bản test: đơn hàng #1 dùng mã gốc (founding Product, version 1).
-    // Đơn hàng #2 (khách hàng khác) dùng mã có hậu tố version của CÙNG gốc đó
+    // Kịch bản test: đơn hàng #1 dùng mã có hậu tố `.1` (founding Product,
+    // versionNumber=1 — hậu tố `.N` thật của AMIS, xem Fix 1/version-detection).
+    // Đơn hàng #2 (khách hàng khác) dùng mã có hậu tố `.2` của CÙNG gốc đó
     // — upsertProductFromAmis đi vào nhánh "new_version" (tạo ProductVersion
     // #2 của CÙNG Product), trả về result.productId = Product.id gốc — chứ
     // KHÔNG có Product nào có amisProductId trùng với mã của đơn hàng #2.
@@ -146,7 +147,7 @@ describe("runAmisSync", () => {
           modified_date: "2026-04-02T00:00:00.000+07:00",
           organization_unit_name: "Phòng kinh doanh I",
           sale_order_product_mappings: [
-            { product_code: versionBaseCode, description: "Sản phẩm test v1", custom_field3: null },
+            { product_code: `${versionBaseCode}.1`, description: "Sản phẩm test v1", custom_field3: null },
           ],
         },
         {
@@ -157,7 +158,7 @@ describe("runAmisSync", () => {
           modified_date: "2026-04-01T00:00:00.000+07:00",
           organization_unit_name: "Phòng kinh doanh I",
           sale_order_product_mappings: [
-            { product_code: `${versionBaseCode}.1`, description: "Sản phẩm test v2", custom_field3: null },
+            { product_code: `${versionBaseCode}.2`, description: "Sản phẩm test v2", custom_field3: null },
           ],
         },
       ],

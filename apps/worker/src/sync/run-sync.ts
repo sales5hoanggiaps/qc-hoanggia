@@ -11,10 +11,43 @@ export interface RunSyncResult {
   syncLogId: string;
 }
 
+/** Ném ra khi `runAmisSync()` được gọi trong lúc 1 lượt đồng bộ khác đang chạy (cron hoặc
+ * nút "Đồng bộ ngay" gọi chồng nhau) — 1 lượt sync có thể chạy vài phút, và chạy 2 lượt
+ * cùng lúc sẽ đua ghi vào cùng dữ liệu, đúng kiểu race gây ra các trạng thái dở dang mà
+ * Fix 2 (transaction) đang bảo vệ chống lại. */
+export class SyncAlreadyRunningError extends Error {
+  constructor() {
+    super("Đang có 1 lượt đồng bộ khác đang chạy, vui lòng thử lại sau");
+    this.name = "SyncAlreadyRunningError";
+  }
+}
+
 const YEAR_START = new Date("2026-01-01T00:00:00.000+07:00");
 const YEAR_END = new Date("2027-01-01T00:00:00.000+07:00");
 
+// Cờ in-flight ở cấp module — Node đơn luồng nên việc kiểm tra + set cờ này ngay ở đầu hàm,
+// trước bất kỳ `await` nào, là an toàn trước race: 2 lệnh gọi runAmisSync() "cùng lúc" vẫn
+// luôn chạy phần đồng bộ của lệnh gọi trước cho tới điểm await đầu tiên trước khi lệnh gọi
+// sau được thực thi.
+let syncInProgress = false;
+
+export function isSyncInProgress(): boolean {
+  return syncInProgress;
+}
+
 export async function runAmisSync(): Promise<RunSyncResult> {
+  if (syncInProgress) {
+    throw new SyncAlreadyRunningError();
+  }
+  syncInProgress = true;
+  try {
+    return await runAmisSyncInternal();
+  } finally {
+    syncInProgress = false;
+  }
+}
+
+async function runAmisSyncInternal(): Promise<RunSyncResult> {
   const syncLog = await prisma.syncLog.create({ data: {} });
   let newProducts = 0;
   let newVersions = 0;
