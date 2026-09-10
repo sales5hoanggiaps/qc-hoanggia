@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import { runAmisSync } from "./sync/run-sync";
+import { runAmisSync, SyncAlreadyRunningError } from "./sync/run-sync";
 import { logger } from "./logger";
 
 export function scheduleNightlySync(): void {
@@ -9,7 +9,13 @@ export function scheduleNightlySync(): void {
     schedule,
     () => {
       logger.info("Bắt đầu đồng bộ AMIS theo lịch...");
-      runAmisSync().catch((err) => logger.error("Lỗi đồng bộ theo lịch:", err));
+      runAmisSync().catch((err) => {
+        if (err instanceof SyncAlreadyRunningError) {
+          logger.info("Bỏ qua lượt đồng bộ theo lịch: đang có 1 lượt đồng bộ khác (thủ công hoặc lịch trước đó) chạy chưa xong.");
+          return;
+        }
+        logger.error("Lỗi đồng bộ theo lịch:", err);
+      });
     },
     { timezone }
   );

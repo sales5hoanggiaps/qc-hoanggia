@@ -1,5 +1,5 @@
 import http from "node:http";
-import { runAmisSync } from "./sync/run-sync";
+import { runAmisSync, SyncAlreadyRunningError } from "./sync/run-sync";
 import { logger } from "./logger";
 
 export function createServer(): http.Server {
@@ -19,6 +19,10 @@ export function createServer(): http.Server {
       const result = await runAmisSync();
       res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(result));
     } catch (err) {
+      if (err instanceof SyncAlreadyRunningError) {
+        res.writeHead(409, { "Content-Type": "application/json" }).end(JSON.stringify({ error: err.message }));
+        return;
+      }
       logger.error("Lỗi xử lý /sync:", err);
       res.writeHead(500, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Đồng bộ thất bại" }));
     }

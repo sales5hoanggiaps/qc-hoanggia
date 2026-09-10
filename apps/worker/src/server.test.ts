@@ -1,10 +1,20 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createServer } from "./server";
+import { runAmisSync, SyncAlreadyRunningError } from "./sync/run-sync";
 import type { RunSyncResult } from "./sync/run-sync";
 
-vi.mock("./sync/run-sync", () => ({
-  runAmisSync: vi.fn(async () => ({ newProducts: 1, newVersions: 0, updatedLinks: 2, syncLogId: "log1" })),
-}));
+vi.mock("./sync/run-sync", () => {
+  class SyncAlreadyRunningError extends Error {
+    constructor() {
+      super("Đang có 1 lượt đồng bộ khác đang chạy, vui lòng thử lại sau");
+      this.name = "SyncAlreadyRunningError";
+    }
+  }
+  return {
+    runAmisSync: vi.fn(async () => ({ newProducts: 1, newVersions: 0, updatedLinks: 2, syncLogId: "log1" })),
+    SyncAlreadyRunningError,
+  };
+});
 
 describe("worker HTTP server", () => {
   beforeEach(() => {
@@ -36,6 +46,23 @@ describe("worker HTTP server", () => {
       headers: { "x-internal-token": "sai-token" },
     });
     expect(response.status).toBe(401);
+    server.close();
+  });
+
+  it("POST /sync khi đang có 1 lượt đồng bộ khác chạy trả về 409", async () => {
+    vi.mocked(runAmisSync).mockRejectedValueOnce(new SyncAlreadyRunningError());
+
+    const server = createServer();
+    server.listen(0);
+    const port = (server.address() as { port: number }).port;
+
+    const response = await fetch(`http://127.0.0.1:${port}/sync`, {
+      method: "POST",
+      headers: { "x-internal-token": "test-token" },
+    });
+    expect(response.status).toBe(409);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe("Đang có 1 lượt đồng bộ khác đang chạy, vui lòng thử lại sau");
     server.close();
   });
 });
