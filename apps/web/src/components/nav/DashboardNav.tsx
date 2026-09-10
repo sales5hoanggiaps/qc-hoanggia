@@ -18,6 +18,11 @@ export function DashboardNav({ role }: { role: UserRole }) {
           Quản trị viên
         </Link>
       )}
+      {canManageContent && (
+        <Link href="/admin/sync" className="rounded px-3 py-2 hover:bg-gray-100">
+          Đồng bộ AMIS
+        </Link>
+      )}
       {role === UserRole.ADMIN && (
         <Link href="/admin/users" className="rounded px-3 py-2 hover:bg-gray-100">
           Tài khoản

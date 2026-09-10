@@ -17,6 +17,7 @@ describe("DashboardNav", () => {
     render(<DashboardNav role={UserRole.MANAGER} />);
     expect(screen.getByText("Quản trị viên")).toBeDefined();
     expect(screen.queryByText("Tài khoản")).toBeNull();
+    expect(screen.getByText("Đồng bộ AMIS")).toBeDefined();
     expect(screen.getByText("Đăng xuất")).toBeDefined();
   });
 
@@ -24,6 +25,7 @@ describe("DashboardNav", () => {
     render(<DashboardNav role={UserRole.ADMIN} />);
     expect(screen.getByText("Quản trị viên")).toBeDefined();
     expect(screen.getByText("Tài khoản")).toBeDefined();
+    expect(screen.getByText("Đồng bộ AMIS")).toBeDefined();
     expect(screen.getByText("Đăng xuất")).toBeDefined();
   });
 });
