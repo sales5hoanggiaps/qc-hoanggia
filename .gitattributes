@@ -1,0 +1,4 @@
+# Shell scripts run as container entrypoints (Linux) — must keep LF endings
+# regardless of a checkout machine's core.autocrlf setting. A CRLF-terminated
+# shebang line fails as "no such file or directory" inside the container.
+*.sh text eol=lf

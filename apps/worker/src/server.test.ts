@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createServer } from "./server";
+import type { RunSyncResult } from "./sync/run-sync";
 
 vi.mock("./sync/run-sync", () => ({
   runAmisSync: vi.fn(async () => ({ newProducts: 1, newVersions: 0, updatedLinks: 2, syncLogId: "log1" })),
@@ -20,7 +21,7 @@ describe("worker HTTP server", () => {
       headers: { "x-internal-token": "test-token" },
     });
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = (await response.json()) as RunSyncResult;
     expect(body.newProducts).toBe(1);
     server.close();
   });

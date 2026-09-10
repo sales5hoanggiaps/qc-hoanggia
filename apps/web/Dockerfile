@@ -10,6 +10,10 @@ RUN apk add --no-cache openssl
 COPY package.json ./
 COPY packages/db/package.json packages/db/package.json
 COPY apps/web/package.json apps/web/package.json
+# Root "build" (invoked below) also builds apps/worker's workspace after
+# apps/web's — its package.json (node-cron et al.) must be installed here
+# too, or that step of the root build fails inside this image.
+COPY apps/worker/package.json apps/worker/package.json
 RUN npm install
 
 FROM base AS build
