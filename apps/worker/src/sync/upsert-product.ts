@@ -84,8 +84,8 @@ async function cloneVersionContent(fromVersionId: string, toVersionId: string) {
 }
 
 export async function upsertProductFromAmis(input: UpsertProductInput): Promise<UpsertResult> {
-  const existingByAmisId = await prisma.product.findUnique({ where: { amisProductId: input.amisProductId } });
-  if (existingByAmisId) {
+  const existingVersion = await prisma.productVersion.findUnique({ where: { amisProductId: input.amisProductId } });
+  if (existingVersion) {
     return { kind: "linked_existing" };
   }
 

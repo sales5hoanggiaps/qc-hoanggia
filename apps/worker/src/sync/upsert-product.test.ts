@@ -141,4 +141,58 @@ describe("upsertProductFromAmis", () => {
     expect(oldVersion?.isCurrent).toBe(false);
     expect(oldVersion?.qc?.checklist).toBe("Đã kiểm tra kích thước");
   });
+
+  it("mã có version suffix xuất hiện LẦN THỨ HAI trong cùng lần sync (2 đơn hàng khác nhau, cùng amisProductId) không được tạo thêm ProductVersion trùng", async () => {
+    // Tái hiện đúng lỗi thật gặp khi chạy sync với dữ liệu AMIS 2026 đầy đủ:
+    // Product.amisProductId chỉ được set 1 LẦN DUY NHẤT lúc tạo Product (giữ
+    // nguyên mã của phiên bản đầu tiên, vd "code:ZZ..."), và không bao giờ
+    // được cập nhật khi tạo ProductVersion mới với amisProductId RIÊNG của nó
+    // (vd "code:ZZ....1"). Vì vậy khi kiểm tra tồn tại bằng
+    // `prisma.product.findUnique({ where: { amisProductId } })` (bug cũ), mã
+    // "code:ZZ....1" KHÔNG BAO GIỜ khớp được với Product.amisProductId nào
+    // (vì đó luôn là mã của phiên bản đầu) — nên nếu đúng mã version-suffixed
+    // này xuất hiện LẦN THỨ HAI trong cùng 1 lần chạy sync (2 đơn hàng khác
+    // nhau cùng chứa 1 mã hàng, hoàn toàn bình thường), code cũ sẽ rơi vào
+    // nhánh "new_version" lần nữa và cố tạo thêm 1 ProductVersion khác với
+    // CÙNG amisProductId đã tồn tại → vi phạm unique constraint
+    // (ProductVersion_amisProductId_key) và ném lỗi, làm sập cả lần sync.
+    //
+    // Fix: kiểm tra tồn tại bằng ProductVersion.amisProductId (được set trên
+    // MỌI version, không riêng version đầu) thay vì Product.amisProductId.
+    const baseAmisId = `amis-${testBaseCode}-dup2-v1`;
+    const versionBaseCode = `ZY${String(Date.now()).slice(-6)}`;
+
+    // Lần 1: tạo baseCode gốc (version 1).
+    await upsertProductFromAmis({
+      amisProductId: baseAmisId,
+      code: versionBaseCode,
+      name: "Bản gốc",
+      description: null,
+    });
+
+    // Lần 2: mã version-suffixed (vd từ đơn hàng #1) — tạo ProductVersion số 2.
+    const versionedAmisId = `${baseAmisId}-2`;
+    const versionedCode = `${versionBaseCode}.1`;
+    const firstResult = await upsertProductFromAmis({
+      amisProductId: versionedAmisId,
+      code: versionedCode,
+      name: "Bản gốc (v1)",
+      description: null,
+    });
+    expect(firstResult.kind).toBe("new_version");
+
+    // Lần 3: CÙNG amisProductId + CÙNG code version-suffixed xuất hiện lại
+    // (vd từ đơn hàng #2 khác, trong cùng lần chạy sync) — phải nhận diện là
+    // đã tồn tại, KHÔNG được tạo thêm ProductVersion và KHÔNG được ném lỗi.
+    const secondResult = await upsertProductFromAmis({
+      amisProductId: versionedAmisId,
+      code: versionedCode,
+      name: "Bản gốc (v1)",
+      description: null,
+    });
+    expect(secondResult.kind).toBe("linked_existing");
+
+    const versionCount = await prisma.productVersion.count({ where: { amisProductId: versionedAmisId } });
+    expect(versionCount).toBe(1);
+  });
 });
