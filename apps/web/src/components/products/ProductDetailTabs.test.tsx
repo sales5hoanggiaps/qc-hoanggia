@@ -1,8 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { UserRole } from "@qc/db";
 import { ProductDetailTabs } from "./ProductDetailTabs";
 import type { ProductDetail } from "@/lib/products/get-product-detail";
+
+// TCSPTab (rendered mặc định ở tab đầu tiên) dùng useRouter() để refresh sau khi lưu —
+// cần mock vì jsdom test không có Next.js app router thật.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 function makeProduct(overrides: Partial<ProductDetail> = {}): ProductDetail {
   return {
