@@ -90,10 +90,20 @@ export async function upsertProductFromAmis(input: UpsertProductInput): Promise<
   }
 
   const parsed = parseVersionSuffix(input.code);
-  const existingBase = parsed ? await prisma.product.findUnique({
-    where: { baseCode: parsed.baseCode },
+  const candidateBaseCode = parsed ? parsed.baseCode : input.code;
+  const existingBase = await prisma.product.findUnique({
+    where: { baseCode: candidateBaseCode },
     include: { currentVersion: true },
-  }) : null;
+  });
+
+  if (existingBase && existingBase.currentVersion && !parsed) {
+    // Mã trần (không có hậu tố version) trùng đúng baseCode của 1 Product đã
+    // tồn tại — thường do 1 mã có version của cùng gốc đã tạo Product này
+    // trước đó trong cùng lần sync (mã trần xuất hiện sau, ở 1 đơn hàng
+    // khác). Không có gì mới để tạo — không tạo thêm Product hay
+    // ProductVersion, tránh đụng unique constraint Product.baseCode.
+    return { kind: "linked_existing" };
+  }
 
   if (parsed && existingBase && existingBase.currentVersion) {
     // Phiên bản mới của mã đã tồn tại — kế thừa nội dung, tạo bản ghi mới, không đụng bản cũ.
@@ -124,10 +134,9 @@ export async function upsertProductFromAmis(input: UpsertProductInput): Promise<
   }
 
   // Mã hoàn toàn mới (không khớp mẫu phiên bản, hoặc baseCode chưa từng thấy).
-  const baseCode = parsed ? parsed.baseCode : input.code;
   const product = await prisma.product.create({
     data: {
-      baseCode,
+      baseCode: candidateBaseCode,
       amisProductId: input.amisProductId,
       status: ProductStatus.PENDING_QC,
     },

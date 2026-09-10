@@ -195,4 +195,61 @@ describe("upsertProductFromAmis", () => {
     const versionCount = await prisma.productVersion.count({ where: { amisProductId: versionedAmisId } });
     expect(versionCount).toBe(1);
   });
+
+  it("mã TRẦN (không hậu tố version) xuất hiện SAU khi mã có hậu tố của cùng gốc đã tạo Product không được tạo Product/ProductVersion trùng baseCode", async () => {
+    // Tái hiện đúng lỗi thật gặp khi chạy sync với dữ liệu AMIS 2026 đầy đủ
+    // (vd mã "AA09596"): dữ liệu đơn hàng AMIS chứa CẢ mã có hậu tố version
+    // (vd "AA09596.1") LẪN mã trần của đúng gốc đó (vd "AA09596"), và mã có
+    // hậu tố được xử lý TRƯỚC trong cùng lần sync — nó founding 1 Product
+    // với baseCode = phần gốc ("AA09596"). Khi mã trần "AA09596" (không có
+    // hậu tố, parsed = null) xuất hiện SAU, amisProductId của nó khác với
+    // amisProductId đã đồng bộ (bug trước đã fix ở existingVersion check),
+    // nên rơi tiếp xuống logic tìm existingBase — nhưng bug (bug thứ 2, đang
+    // fix ở đây) chỉ tra existingBase khi `parsed` truthy, nên với mã trần
+    // (parsed = null) nó luôn bị bỏ qua và code rơi thẳng vào nhánh "hoàn
+    // toàn mới", cố gọi `prisma.product.create({ baseCode: "AA09596" })` —
+    // đụng unique constraint Product.baseCode (Product đã tồn tại với đúng
+    // baseCode này) và ném lỗi, làm sập cả lần sync.
+    //
+    // Fix: luôn tra existingBase bằng `parsed ? parsed.baseCode : input.code`
+    // (không điều kiện theo parsed truthy nữa) — khi tìm thấy Product đã tồn
+    // tại VÀ mã hiện tại là mã trần (parsed = null), coi như không có gì mới
+    // để tạo, trả về linked_existing thay vì tạo Product/ProductVersion mới.
+    const baseAmisId = `amis-${testBaseCode}-bare-v1`;
+    const versionBaseCode = `ZX${String(Date.now()).slice(-6)}`;
+
+    // Lần 1: mã có hậu tố version (vd "AA09596.1") xử lý trước — founding
+    // Product với baseCode = phần gốc, tạo ProductVersion số 1.
+    const versionedResult = await upsertProductFromAmis({
+      amisProductId: baseAmisId,
+      code: `${versionBaseCode}.1`,
+      name: "Bản gốc (v1)",
+      description: null,
+    });
+    expect(versionedResult.kind).toBe("created");
+
+    const productCountBefore = await prisma.product.count({ where: { baseCode: versionBaseCode } });
+    const versionCountBefore = await prisma.productVersion.count({ where: { productId: (await prisma.product.findUnique({ where: { baseCode: versionBaseCode } }))!.id } });
+    expect(productCountBefore).toBe(1);
+    expect(versionCountBefore).toBe(1);
+
+    // Lần 2: mã TRẦN của đúng gốc đó (vd "AA09596"), amisProductId khác,
+    // xuất hiện sau (đơn hàng khác) — phải được nhận diện là đã có Product
+    // này rồi, KHÔNG được tạo thêm Product/ProductVersion, KHÔNG được ném lỗi.
+    const bareAmisId = `${baseAmisId}-bare`;
+    const bareResult = await upsertProductFromAmis({
+      amisProductId: bareAmisId,
+      code: versionBaseCode,
+      name: "Bản gốc",
+      description: null,
+    });
+    expect(bareResult.kind).toBe("linked_existing");
+
+    const product = await prisma.product.findUnique({ where: { baseCode: versionBaseCode } });
+    expect(product).not.toBeNull();
+    const productCountAfter = await prisma.product.count({ where: { baseCode: versionBaseCode } });
+    const versionCountAfter = await prisma.productVersion.count({ where: { productId: product!.id } });
+    expect(productCountAfter).toBe(1);
+    expect(versionCountAfter).toBe(1);
+  });
 });
