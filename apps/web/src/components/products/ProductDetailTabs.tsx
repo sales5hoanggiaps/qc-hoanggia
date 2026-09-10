@@ -7,6 +7,7 @@ import { TCSPTab } from "./TCSPTab";
 import { QCTab } from "./QCTab";
 import { PackagingTab } from "./PackagingTab";
 import { DocumentsTab } from "./DocumentsTab";
+import { HistoryTab } from "./HistoryTab";
 
 const TABS = ["Tiêu chuẩn sản phẩm", "QC sản phẩm", "Quy cách đóng gói", "Giấy tờ sản phẩm", "Lịch sử phiên bản"] as const;
 type TabName = (typeof TABS)[number];
@@ -54,7 +55,7 @@ export function ProductDetailTabs({ product, role }: { product: ProductDetail; r
           <PackagingTab product={product} editing={editing && activeTab === "Quy cách đóng gói"} onDoneEditing={() => setEditing(false)} />
         )}
         {activeTab === "Giấy tờ sản phẩm" && <DocumentsTab product={product} />}
-        {activeTab === "Lịch sử phiên bản" && <div data-testid="tab-history">(Lịch sử — Task 6)</div>}
+        {activeTab === "Lịch sử phiên bản" && <HistoryTab product={product} />}
       </div>
     </div>
   );
