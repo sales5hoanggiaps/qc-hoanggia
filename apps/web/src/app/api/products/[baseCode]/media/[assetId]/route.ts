@@ -55,11 +55,16 @@ export async function DELETE(_req: Request, { params }: { params: { baseCode: st
   const found = await findEditableAsset(params.baseCode, params.assetId);
   if (!found) return NextResponse.json({ error: "Không tìm thấy file hoặc không phải phiên bản hiện hành" }, { status: 404 });
 
-  await deleteObject(found.asset.storageKey);
+  // Xóa DB trước, xóa file MinIO SAU khi transaction đã commit thành công — nếu làm ngược lại và
+  // transaction lỗi giữa chừng, sẽ để lại 1 dòng MediaAsset trỏ tới file đã mất (ảnh vỡ trên UI,
+  // không có cách nào tự phục hồi). Object mồ côi trên MinIO nếu deleteObject lỗi sau commit là vấn đề
+  // rẻ hơn nhiều (chỉ tốn dung lượng, không vỡ gì hiển thị) — cùng nguyên tắc atomic ghi-trước-xóa-sau
+  // đã dùng ở tcsp/route.ts.
   await prisma.$transaction(async (tx) => {
     await tx.mediaAsset.delete({ where: { id: params.assetId } });
     await recordChanges(found.versionId, session.user.id, [{ fieldPath: "media", oldValue: found.asset.caption || found.asset.storageKey.split("/").pop()!, newValue: null }], tx);
   });
+  await deleteObject(found.asset.storageKey);
 
   return NextResponse.json({ ok: true });
 }
