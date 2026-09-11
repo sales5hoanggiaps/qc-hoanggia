@@ -12,7 +12,15 @@ import { HistoryTab } from "./HistoryTab";
 const TABS = ["Tiêu chuẩn sản phẩm", "QC sản phẩm", "Quy cách đóng gói", "Giấy tờ sản phẩm", "Lịch sử phiên bản"] as const;
 type TabName = (typeof TABS)[number];
 
-export function ProductDetailTabs({ product, role }: { product: ProductDetail; role: UserRole }) {
+export function ProductDetailTabs({
+  product,
+  role,
+  mediaUrls,
+}: {
+  product: ProductDetail;
+  role: UserRole;
+  mediaUrls: Record<string, string>;
+}) {
   const [activeTab, setActiveTab] = useState<TabName>("Tiêu chuẩn sản phẩm");
   const [editing, setEditing] = useState(false);
   const canEdit = role === UserRole.MANAGER || role === UserRole.ADMIN;
@@ -46,13 +54,13 @@ export function ProductDetailTabs({ product, role }: { product: ProductDetail; r
       </div>
       <div className="py-4">
         {activeTab === "Tiêu chuẩn sản phẩm" && (
-          <TCSPTab product={product} editing={editing && activeTab === "Tiêu chuẩn sản phẩm"} onDoneEditing={() => setEditing(false)} />
+          <TCSPTab product={product} editing={editing && activeTab === "Tiêu chuẩn sản phẩm"} onDoneEditing={() => setEditing(false)} mediaUrls={mediaUrls} />
         )}
         {activeTab === "QC sản phẩm" && (
-          <QCTab product={product} editing={editing && activeTab === "QC sản phẩm"} onDoneEditing={() => setEditing(false)} />
+          <QCTab product={product} editing={editing && activeTab === "QC sản phẩm"} onDoneEditing={() => setEditing(false)} mediaUrls={mediaUrls} />
         )}
         {activeTab === "Quy cách đóng gói" && (
-          <PackagingTab product={product} editing={editing && activeTab === "Quy cách đóng gói"} onDoneEditing={() => setEditing(false)} />
+          <PackagingTab product={product} editing={editing && activeTab === "Quy cách đóng gói"} onDoneEditing={() => setEditing(false)} mediaUrls={mediaUrls} />
         )}
         {activeTab === "Giấy tờ sản phẩm" && <DocumentsTab product={product} />}
         {activeTab === "Lịch sử phiên bản" && <HistoryTab product={product} />}

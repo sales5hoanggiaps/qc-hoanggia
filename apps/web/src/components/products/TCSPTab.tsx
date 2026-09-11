@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { VersionBanner } from "./VersionBanner";
+import { MediaGallery } from "./MediaGallery";
+import { MediaUploader } from "./MediaUploader";
 import type { ProductDetail } from "@/lib/products/get-product-detail";
 
 interface SpecRow {
@@ -19,10 +21,12 @@ export function TCSPTab({
   product,
   editing,
   onDoneEditing,
+  mediaUrls = {},
 }: {
   product: ProductDetail;
   editing: boolean;
   onDoneEditing: () => void;
+  mediaUrls?: Record<string, string>;
 }) {
   const router = useRouter();
   const version = product.currentVersion!;
@@ -130,6 +134,7 @@ export function TCSPTab({
             )}
           </tbody>
         </table>
+        <MediaGallery media={tcsp?.media ?? []} mediaUrls={mediaUrls} />
       </div>
     );
   }
@@ -174,6 +179,8 @@ export function TCSPTab({
         </tbody>
       </table>
       <button onClick={addRow} className="text-sm text-brand-600 hover:underline">+ Thêm dòng</button>
+
+      <MediaUploader baseCode={product.baseCode} tab="tcsp" media={tcsp?.media ?? []} mediaUrls={mediaUrls} onChanged={() => router.refresh()} />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">

@@ -7,19 +7,20 @@ export async function getProductDetail(baseCode: string) {
       category: true,
       currentVersion: {
         include: {
-          tcsp: { include: { specRows: { orderBy: { sortOrder: "asc" } } } },
-          qc: true,
-          packaging: true,
-          documents: { include: { files: true } },
+          tcsp: { include: { specRows: { orderBy: { sortOrder: "asc" } }, media: { orderBy: { sortOrder: "asc" } } } },
+          qc: { include: { media: { orderBy: { sortOrder: "asc" } } } },
+          packaging: { include: { media: { orderBy: { sortOrder: "asc" } } } },
+          documents: { include: { files: { orderBy: { uploadedAt: "desc" } } } },
         },
       },
       versions: {
         orderBy: { versionNumber: "desc" },
         include: {
           changeLogs: { orderBy: { changedAt: "desc" } },
-          tcsp: true,
-          qc: true,
-          packaging: true,
+          tcsp: { include: { specRows: { orderBy: { sortOrder: "asc" } }, media: { orderBy: { sortOrder: "asc" } } } },
+          qc: { include: { media: { orderBy: { sortOrder: "asc" } } } },
+          packaging: { include: { media: { orderBy: { sortOrder: "asc" } } } },
+          documents: { include: { files: { orderBy: { uploadedAt: "desc" } } } },
         },
       },
     },

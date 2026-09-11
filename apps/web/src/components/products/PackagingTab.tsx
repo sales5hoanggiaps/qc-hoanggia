@@ -3,16 +3,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { VersionBanner } from "./VersionBanner";
+import { MediaGallery } from "./MediaGallery";
+import { MediaUploader } from "./MediaUploader";
 import type { ProductDetail } from "@/lib/products/get-product-detail";
 
 export function PackagingTab({
   product,
   editing,
   onDoneEditing,
+  mediaUrls = {},
 }: {
   product: ProductDetail;
   editing: boolean;
   onDoneEditing: () => void;
+  mediaUrls?: Record<string, string>;
 }) {
   const router = useRouter();
   const version = product.currentVersion!;
@@ -55,6 +59,7 @@ export function PackagingTab({
         <VersionBanner version={bannerVersion} />
         <div><strong>Hướng dẫn đóng gói:</strong><p className="whitespace-pre-wrap">{packaging?.instructions || "Chưa có dữ liệu"}</p></div>
         <div><strong>Lưu ý đóng gói:</strong><p className="whitespace-pre-wrap">{packaging?.specialNotes || "Chưa có dữ liệu"}</p></div>
+        <MediaGallery media={packaging?.media ?? []} mediaUrls={mediaUrls} />
       </div>
     );
   }
@@ -64,6 +69,9 @@ export function PackagingTab({
       <VersionBanner version={bannerVersion} />
       <label className="block text-sm">Hướng dẫn đóng gói<textarea rows={5} className="mt-1 w-full rounded border px-2 py-1" value={instructions} onChange={(e) => setInstructions(e.target.value)} /></label>
       <label className="block text-sm">Lưu ý đóng gói, tem nhãn dán thùng<textarea rows={5} className="mt-1 w-full rounded border px-2 py-1" value={specialNotes} onChange={(e) => setSpecialNotes(e.target.value)} /></label>
+
+      <MediaUploader baseCode={product.baseCode} tab="packaging" media={packaging?.media ?? []} mediaUrls={mediaUrls} onChanged={() => router.refresh()} />
+
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
         <button onClick={handleSave} disabled={saving} className="rounded bg-brand-600 px-4 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50">

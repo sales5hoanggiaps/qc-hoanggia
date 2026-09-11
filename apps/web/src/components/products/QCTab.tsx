@@ -3,16 +3,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { VersionBanner } from "./VersionBanner";
+import { MediaGallery } from "./MediaGallery";
+import { MediaUploader } from "./MediaUploader";
 import type { ProductDetail } from "@/lib/products/get-product-detail";
 
 export function QCTab({
   product,
   editing,
   onDoneEditing,
+  mediaUrls = {},
 }: {
   product: ProductDetail;
   editing: boolean;
   onDoneEditing: () => void;
+  mediaUrls?: Record<string, string>;
 }) {
   const router = useRouter();
   const version = product.currentVersion!;
@@ -58,6 +62,7 @@ export function QCTab({
         <div><strong>Các mục cần QC:</strong><p className="whitespace-pre-wrap">{qc?.checklist || "Chưa có dữ liệu"}</p></div>
         <div><strong>Lỗi đã từng gặp:</strong><p className="whitespace-pre-wrap">{qc?.knownDefects || "Chưa có dữ liệu"}</p></div>
         <div><strong>Lưu ý đặc biệt:</strong><p className="whitespace-pre-wrap">{qc?.specialNotes || "Chưa có dữ liệu"}</p></div>
+        <MediaGallery media={qc?.media ?? []} mediaUrls={mediaUrls} />
       </div>
     );
   }
@@ -68,6 +73,9 @@ export function QCTab({
       <label className="block text-sm">Các mục cần QC<textarea rows={4} className="mt-1 w-full rounded border px-2 py-1" value={checklist} onChange={(e) => setChecklist(e.target.value)} /></label>
       <label className="block text-sm">Lỗi đã từng gặp<textarea rows={4} className="mt-1 w-full rounded border px-2 py-1" value={knownDefects} onChange={(e) => setKnownDefects(e.target.value)} /></label>
       <label className="block text-sm">Lưu ý đặc biệt<textarea rows={4} className="mt-1 w-full rounded border px-2 py-1" value={specialNotes} onChange={(e) => setSpecialNotes(e.target.value)} /></label>
+
+      <MediaUploader baseCode={product.baseCode} tab="qc" media={qc?.media ?? []} mediaUrls={mediaUrls} onChanged={() => router.refresh()} />
+
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
         <button onClick={handleSave} disabled={saving} className="rounded bg-brand-600 px-4 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50">

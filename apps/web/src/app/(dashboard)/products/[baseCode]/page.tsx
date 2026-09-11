@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getProductDetail } from "@/lib/products/get-product-detail";
+import { buildMediaUrlMap } from "@/lib/products/build-media-url-map";
 import { ProductDetailTabs } from "@/components/products/ProductDetailTabs";
 
 export default async function ProductDetailPage({ params }: { params: { baseCode: string } }) {
@@ -14,6 +15,8 @@ export default async function ProductDetailPage({ params }: { params: { baseCode
   const product = await getProductDetail(params.baseCode);
   if (!product || !product.currentVersion) notFound();
 
+  const mediaUrls = await buildMediaUrlMap(product.currentVersion);
+
   return (
     <div className="p-6">
       <h1 className="text-lg font-semibold">
@@ -22,7 +25,7 @@ export default async function ProductDetailPage({ params }: { params: { baseCode
       <p className="mb-4 text-sm text-gray-500">
         {product.category?.name ?? "Chưa phân loại"} · Trạng thái: {product.status}
       </p>
-      <ProductDetailTabs product={product} role={session.user.role} />
+      <ProductDetailTabs product={product} role={session.user.role} mediaUrls={mediaUrls} />
     </div>
   );
 }

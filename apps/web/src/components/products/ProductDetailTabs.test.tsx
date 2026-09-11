@@ -43,7 +43,7 @@ function makeProduct(overrides: Partial<ProductDetail> = {}): ProductDetail {
 
 describe("ProductDetailTabs", () => {
   it("QC_STAFF thấy 5 tab nhưng không thấy nút Chỉnh sửa", () => {
-    render(<ProductDetailTabs product={makeProduct()} role={UserRole.QC_STAFF} />);
+    render(<ProductDetailTabs product={makeProduct()} role={UserRole.QC_STAFF} mediaUrls={{}} />);
     for (const label of ["Tiêu chuẩn sản phẩm", "QC sản phẩm", "Quy cách đóng gói", "Giấy tờ sản phẩm", "Lịch sử phiên bản"]) {
       expect(screen.getByText(label)).toBeDefined();
     }
@@ -51,12 +51,12 @@ describe("ProductDetailTabs", () => {
   });
 
   it("MANAGER thấy nút Chỉnh sửa ở tab TCSP (tab mặc định)", () => {
-    render(<ProductDetailTabs product={makeProduct()} role={UserRole.MANAGER} />);
+    render(<ProductDetailTabs product={makeProduct()} role={UserRole.MANAGER} mediaUrls={{}} />);
     expect(screen.getByText("Chỉnh sửa")).toBeDefined();
   });
 
   it("chuyển sang tab Lịch sử phiên bản thì không còn nút Chỉnh sửa (tab đó không sửa được)", () => {
-    render(<ProductDetailTabs product={makeProduct()} role={UserRole.MANAGER} />);
+    render(<ProductDetailTabs product={makeProduct()} role={UserRole.MANAGER} mediaUrls={{}} />);
     fireEvent.click(screen.getByText("Lịch sử phiên bản"));
     expect(screen.queryByText("Chỉnh sửa")).toBeNull();
   });
