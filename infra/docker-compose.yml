@@ -11,6 +11,19 @@ services:
     volumes:
       - qc_postgres_data:/var/lib/postgresql/data
 
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: qc_minio
+      MINIO_ROOT_PASSWORD: qc_minio_password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - qc_minio_data:/data
+
   web:
     build:
       context: ..
@@ -29,8 +42,12 @@ services:
       # port 4100 — "localhost:4100" (used for local `npm run dev`) would
       # refer to the web container itself here.
       SYNC_WORKER_URL: http://worker:4100
+      # Same reasoning: inside the Compose network the "minio" service name
+      # resolves to the minio container, not "localhost".
+      STORAGE_ENDPOINT: http://minio:9000
     depends_on:
       - postgres
+      - minio
     ports:
       - "3100:3000"
 
@@ -42,8 +59,11 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://qc:qc_dev_password@postgres:5432/qc_hoanggia
+      STORAGE_ENDPOINT: http://minio:9000
     depends_on:
       - postgres
+      - minio
 
 volumes:
   qc_postgres_data:
+  qc_minio_data:
