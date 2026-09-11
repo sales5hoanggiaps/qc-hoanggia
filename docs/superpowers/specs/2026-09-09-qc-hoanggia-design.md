@@ -281,7 +281,7 @@ model SyncLog {
 
 ## 7. Quản lý nội dung 4 mục & Media
 
-**Chia làm 2 plan triển khai (chốt 2026-09-10):** Plan 3a "Nội dung & Lịch sử" (trang chi tiết 5 tab, form sửa văn bản, tab Lịch sử) trước; Plan 3b "Media & xuất file" (upload ảnh/video/tài liệu, xuất Excel TCSP) sau, xây trên nền 3a.
+**Chia làm 2 plan triển khai (chốt 2026-09-10):** Plan 3a "Nội dung & Lịch sử" (trang chi tiết 5 tab, form sửa văn bản, tab Lịch sử) — **đã merge vào master 2026-09-11**; Plan 3b "Media & xuất file" (upload ảnh/video/tài liệu, xuất Excel TCSP) — thiết kế chi tiết chốt 2026-09-11, xây trên nền 3a.
 
 **Route (Plan 3a):** `/products/[baseCode]` — trang chi tiết mã hàng, mặc định hiển thị `currentVersion`. Xem phiên bản cũ qua `/products/[baseCode]/v/[versionNumber]` (chỉ đọc, không có nút Chỉnh sửa).
 
@@ -292,16 +292,26 @@ model SyncLog {
 - Tab Giấy tờ sản phẩm (Plan 3a): hiển thị khung danh sách file (rỗng, vì upload chưa có ở 3a) — UI sẵn sàng nhận dữ liệu khi Plan 3b thêm upload.
 - **Lưu ý an toàn khi sửa nội dung (liên quan phát hiện mục 12 về mã AMIS bị dùng lại/rơi phiên bản):** form sửa PHẢI hiển thị rõ `versionNumber`/mã AMIS gốc (`.N`) của phiên bản đang xem ngay trên đầu trang, để Quản trị viên nhận ra nếu nội dung "kế thừa" từ 1 phiên bản trước có vẻ không khớp (vd tên sản phẩm đổi khác hẳn) — đây là hàng rào tối thiểu cho tới khi có cảnh báo tự động (chưa làm ở Plan 3a/3b).
 
-**Media (Plan 3b — chưa thiết kế chi tiết, để brainstorm riêng khi bắt đầu):**
-- Mỗi tab TCSP/QC/Đóng gói có khu upload nhiều ảnh/video (`MediaAsset`), có chú thích + sắp xếp thứ tự; tab Giấy tờ sản phẩm upload file tài liệu phân loại COA/MSDS/ROHS/Khác (`ProductDocument`).
-- **Lưu trữ: MinIO tự host trong Docker** (chốt 2026-09-10 — cùng triết lý portable/không phụ thuộc nơi triển khai đã theo từ đầu dự án, không cần tài khoản/chi phí bên ngoài).
-- Upload qua presigned URL lên object storage (client upload thẳng, tránh tải qua server app); giới hạn ảnh ~10MB, video ~200MB (mp4).
-- Xem/tải file: server sinh link ký hết hạn ngắn (vài phút) mỗi khi trang được mở bởi người dùng đã đăng nhập — không có link công khai vĩnh viễn.
+**Media (Plan 3b — chốt thiết kế 2026-09-11, sau khi Plan 3a merge):**
+
+- Mỗi tab TCSP/QC/Đóng gói có khu upload nhiều ảnh/video (`MediaAsset`), có chú thích + sắp xếp thứ tự; tab Giấy tờ sản phẩm (trước đó ở Plan 3a chỉ đọc) nay có thêm nút "Chỉnh sửa" giống các tab khác để upload/xóa file tài liệu phân loại COA/MSDS/ROHS/Khác (`ProductDocument`). Quyền tạo/sửa/xóa media/tài liệu: MANAGER/ADMIN, giống quyền sửa nội dung văn bản.
+- **Lưu trữ: MinIO tự host trong Docker** (chốt 2026-09-10). Thêm service `minio` vào `docker-compose.yml`, tạo bucket riêng lúc khởi động; `apps/web` và `apps/worker` đều cần kết nối (worker cần để sao chép file khi kế thừa phiên bản, xem dưới).
+- **Luồng upload (client upload thẳng lên MinIO, tránh qua server app):**
+  1. Client gọi `POST /api/products/[baseCode]/media/upload-url` khai báo `{tab, fileName, mimeType, size}`.
+  2. Server kiểm tra quyền + giới hạn dung lượng (ảnh ~10MB, video ~200MB mp4), sinh `storageKey` dạng `products/<baseCode>/<versionId>/<cuid>-<tênfile>`, trả về presigned PUT URL có **ký cứng Content-Length/Content-Type** (client khai nhỏ mà tải file to sẽ bị MinIO từ chối do sai chữ ký, không cần cấu hình policy riêng).
+  3. Client `PUT` thẳng file lên MinIO bằng URL đó.
+  4. Client gọi `POST /api/products/[baseCode]/media` (hoặc `/documents`) để tạo `MediaAsset`/`ProductDocument` (chú thích, thứ tự, loại tài liệu) + ghi `ChangeLogEntry` nguồn `MANUAL`.
+- **Xem/tải file:** khi server render trang chi tiết (đã đăng nhập), với mỗi media/tài liệu sinh 1 link GET đã ký, hết hạn sau 5 phút, nhúng thẳng vào trang — không có link công khai vĩnh viễn.
+- **Xóa:** xóa dòng DB + xóa hẳn object trên MinIO ngay (media không phải dữ liệu audit bắt buộc giữ vĩnh viễn như nội dung văn bản TCSP/QC/Đóng gói).
+- **Kế thừa media khi sinh phiên bản mới (sync-worker):** ảnh/video/tài liệu của phiên bản trước tự động mang sang phiên bản mới (nhất quán với cách nội dung văn bản đã kế thừa ở Plan 3a). Vì quyết định "xóa hẳn file" ở trên, **mỗi phiên bản phải có file độc lập của riêng mình** — nếu chỉ trỏ chung `storageKey`, xóa media ở phiên bản mới sẽ làm mất luôn ảnh của phiên bản cũ (vốn phải giữ nguyên, chỉ đọc). Do đó khi `cloneVersionContent()` (worker) sao chép `MediaAsset`/`ProductDocument` sang phiên bản mới, phải gọi `CopyObject` trên MinIO (server-to-server, tức thời) để tạo `storageKey` mới độc lập trước khi tạo dòng DB — **đây là thay đổi bắt buộc so với code `cloneVersionContent()` hiện tại** (đã viết từ trước, hiện chỉ copy dòng DB và dùng chung `storageKey` cũ, chưa lộ vấn đề vì chưa có media thật). Lỗi `CopyObject` của 1 file không được làm hỏng cả lần đồng bộ — bỏ qua đúng file đó, ghi log cảnh báo, tiếp tục.
+- **Trang phiên bản cũ (`/products/[baseCode]/v/[versionNumber]`):** mở rộng để hiển thị đầy đủ như phiên bản hiện hành (toàn bộ trường TCSP gồm bảng `TCSPSpecRow`, mã NL, người lập/duyệt/ngày duyệt; QC và Đóng gói đầy đủ trường bao gồm lưu ý/lỗi thường gặp; media/tài liệu — chỉ xem, không có nút sửa/xóa/upload) thay vì bản rút gọn 3 trường như Plan 3a đã làm (việc còn treo từ Plan 3a, gộp sửa luôn ở đây vì Plan 3b đụng vào cùng trang này để thêm nút Tải TCSP + hiển thị media).
 
 ## 8. Xuất file TCSP theo form Hoàng Gia
 
-- Giữ file `TCSP HOÀNG GIA.xlsx` gốc làm template (giữ nguyên khung, logo, định dạng ô).
-- Khi bấm "Tải TCSP" ở tab Tiêu chuẩn sản phẩm: server dùng thư viện đọc/ghi Excel (giữ style, vd `exceljs`) mở template, điền dữ liệu phiên bản hiện hành (mã, tên, mô tả, mã NL, các dòng trong `TCSPSpecRow` theo đúng nhóm Kích thước/TC khác, người lập/duyệt/ngày duyệt) vào đúng vị trí ô đã xác định sẵn, xuất file `.xlsx` để tải về.
+- **File mẫu** (`assets/templates/tcsp-template.xlsx` trong repo, chuẩn hoá lại 2026-09-11 từ `TCSP HOÀNG GIA.xlsx` gốc): file gốc có 4 sheet (1 sheet "Specification" ẩn không dùng; 3 sheet "TCSP Hàng Mã AA & ST"/"SB"/"SI" — kiểm tra thực tế cho thấy **cấu trúc giống hệt nhau**, chỉ khác dữ liệu ví dụ theo tiền tố mã). Chỉ giữ lại **1 sheet layout dùng chung cho mọi mã hàng**, xóa dữ liệu ví dụ thật của khách hàng (SI06526/SB0954/AA04063) trước khi đưa vào code.
+- **Cấu trúc mẫu:** ô "Mã"/"Tên" cố định; ô "Mô tả"/"Mã NL" (vùng merge); vùng "Ảnh/Market" để chèn ảnh sản phẩm (file gốc vốn đã nhúng ảnh thật kiểu này — dùng API chèn ảnh của thư viện Excel, ví dụ `exceljs` `addImage`, vào đúng vùng neo); bảng thông số (cột Tiêu chuẩn/Tiêu chí/Thông số/D.sai/Đơn vị/Ghi chú, nhóm theo `groupName` với ô nhãn nhóm merge dọc); dòng chân trang Người lập/Người duyệt/Ngày duyệt.
+- **Số dòng thông số là ĐỘNG** (không cố định — thực tế có thể nhiều/ít hơn ví dụ trong file gốc): khi xuất, server phải chèn/xóa dòng trong bản sao của sheet cho khớp số dòng thật của từng nhóm `TCSPSpecRow`, tính lại vùng merge nhãn nhóm (cột A) theo đúng số dòng mới, và dịch dòng chân trang xuống/lên theo đúng vị trí sau khi bảng co giãn.
+- Khi bấm "Tải TCSP" (ở tab Tiêu chuẩn sản phẩm, và ở trang phiên bản cũ để tải TCSP của đúng phiên bản đó): server mở template, điền toàn bộ dữ liệu của `versionId` được yêu cầu (mặc định `currentVersion` nếu không truyền phiên bản), xuất file `.xlsx` để tải về. **Quyền tải: cả 3 vai trò** (QC_STAFF/MANAGER/ADMIN) — đây là hành động đọc/xuất dữ liệu, không phải sửa nội dung, nên không giới hạn như quyền sửa.
 - Xuất PDF: ngoài phạm vi v1 (mục 2), để ngỏ cho giai đoạn sau.
 
 ## 9. Tìm kiếm & Danh sách mã hàng
@@ -312,7 +322,7 @@ model SyncLog {
 
 ## 10. Hạ tầng, triển khai, vận hành
 
-- Docker Compose: `web`, `sync-worker`, `postgres`, `nginx`, (+ `minio` nếu chọn tự host object storage thay vì Cloudflare R2 — quyết định khi chọn nơi triển khai).
+- Docker Compose: `web`, `sync-worker`, `postgres`, `nginx`, `minio` (chốt 2026-09-10 — tự host object storage, không dùng Cloudflare R2/dịch vụ ngoài).
 - Biến môi trường nhạy cảm (AMIS client_id/secret, DB URL, khoá storage, session secret) qua `.env`, không commit.
 - Thiết kế portable: không phụ thuộc vị trí máy chủ cụ thể — có thể chạy trên VPS Hostinger hiện tại (stack Docker tách biệt CRM) hoặc VPS mới, tuỳ quyết định sau của anh Quân.
 
