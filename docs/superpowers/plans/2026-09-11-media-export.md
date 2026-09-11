@@ -1456,6 +1456,9 @@ git commit -m "fix(worker): kế thừa media bằng file MinIO độc lập m�
 - Create: `apps/web/src/lib/tcsp-export/build-workbook.ts`
 - Create: `apps/web/src/lib/tcsp-export/build-workbook.test.ts`
 - Modify: `apps/web/package.json`
+- Modify: `apps/web/Dockerfile`
+
+**Lưu ý cwd (phát hiện ở pre-flight, xem ledger):** `process.cwd()` KHÔNG giống nhau giữa 3 môi trường chạy code này — `next dev`/`vitest` (workspace `apps/web`) có cwd = `apps/web/`, còn container production (`docker-entrypoint.sh` chạy `node apps/web/server.js` từ `WORKDIR /repo`) có cwd = `/repo`. `build-workbook.ts` phải tự dò cả 2 đường dẫn ứng viên thay vì giả định 1 cwd cố định (xem Bước 2), và `apps/web/Dockerfile` phải copy thêm `assets/` vào image production (repo-root `assets/` KHÔNG nằm trong `.next/standalone` mà Next tự trace — nó là 1 tài liệu Excel đọc qua `fs` lúc chạy, không phải module JS được import).
 
 **Interfaces:**
 - Produces: `buildTcspWorkbook(input: TcspExportInput): Promise<Buffer>` — dùng ở Task 7.
@@ -1622,9 +1625,25 @@ Chạy → FAIL (chưa có `build-workbook.ts`).
 
 ```ts
 import ExcelJS from "exceljs";
+import fs from "node:fs";
 import path from "node:path";
 
-const TEMPLATE_PATH = path.resolve(process.cwd(), "assets/templates/tcsp-template.xlsx");
+// process.cwd() khác nhau giữa dev/test (workspace "apps/web", cwd = apps/web/) và container
+// production (docker-entrypoint.sh chạy `node apps/web/server.js` từ WORKDIR /repo, cwd = /repo) —
+// dò cả 2 ứng viên thay vì giả định 1 cwd cố định (xem ghi chú pre-flight đầu Task 6).
+function resolveTemplatePath(): string {
+  const candidates = [
+    path.resolve(process.cwd(), "assets/templates/tcsp-template.xlsx"), // cwd = /repo (production)
+    path.resolve(process.cwd(), "../../assets/templates/tcsp-template.xlsx"), // cwd = apps/web (dev/test)
+  ];
+  const found = candidates.find((p) => fs.existsSync(p));
+  if (!found) {
+    throw new Error(`Không tìm thấy file mẫu TCSP. Đã thử: ${candidates.join(", ")}`);
+  }
+  return found;
+}
+
+const TEMPLATE_PATH = resolveTemplatePath();
 const HEADER_ROW = 7;
 const FIRST_DATA_ROW = 8;
 
@@ -1710,14 +1729,24 @@ export async function buildTcspWorkbook(input: TcspExportInput): Promise<Buffer>
 
 Chạy test → PASS (nếu lệch tọa độ chân trang/nhóm merge, đây chính là chỗ TDD tự lộ ra lệch bao nhiêu dòng/cột — sửa `FIRST_DATA_ROW`/offset chân trang cho khớp, không cần đoán trước).
 
-- [ ] **Bước 5: Thêm `exceljs`, chạy toàn bộ suite, commit**
+- [ ] **Bước 5: Đưa `assets/` vào image production (`apps/web/Dockerfile`)**
+
+`.next/standalone` (Next tự trace) KHÔNG bao gồm `assets/templates/tcsp-template.xlsx` — đây là file đọc qua `fs` lúc chạy, không phải module JS được `import`, nên Next không biết mà đóng gói theo. Thêm 1 dòng `COPY` vào stage `runner` của `apps/web/Dockerfile`, ngay cạnh dòng copy `packages/db/prisma` đã có:
+
+```dockerfile
+COPY --from=build /repo/packages/db/prisma ./packages/db/prisma
+COPY --from=build /repo/packages/db/package.json ./packages/db/package.json
+COPY --from=build /repo/assets ./assets
+```
+
+- [ ] **Bước 6: Thêm `exceljs`, chạy toàn bộ suite, commit**
 
 `apps/web/package.json` — thêm vào `dependencies`: `"exceljs": "^4.4.0"`.
 
 ```bash
 npm install
 npm run test --workspace=apps/web -- build-workbook
-git add scripts/build-tcsp-template.js assets/templates/tcsp-template.xlsx apps/web/src/lib/tcsp-export apps/web/package.json package-lock.json
+git add scripts/build-tcsp-template.js assets/templates/tcsp-template.xlsx apps/web/src/lib/tcsp-export apps/web/package.json apps/web/Dockerfile package-lock.json
 git commit -m "feat(web): file mẫu TCSP sạch + logic dựng workbook Excel động"
 ```
 
