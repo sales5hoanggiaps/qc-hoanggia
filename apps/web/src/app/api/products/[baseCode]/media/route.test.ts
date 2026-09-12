@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeAll, afterAll, beforeEach } from "vitest";
 import { prisma, UserRole } from "@qc/db";
+import { buildStorageKey } from "@qc/storage";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 import { auth } from "@/lib/auth";
@@ -38,9 +39,10 @@ describe("/api/products/[baseCode]/media", () => {
 
   it("MANAGER tạo MediaAsset thành công dù TCSPData chưa từng tồn tại, ghi ChangeLogEntry", async () => {
     mockSession(UserRole.MANAGER);
+    const storageKey = buildStorageKey(baseCode, versionId, "anh.jpg");
     const req = new Request(`http://localhost/api/products/${baseCode}/media`, {
       method: "POST",
-      body: JSON.stringify({ tab: "tcsp", storageKey: "products/x/y/z-anh.jpg", mimeType: "image/jpeg", caption: "Ảnh mặt trước", sortOrder: 0 }),
+      body: JSON.stringify({ tab: "tcsp", storageKey, mimeType: "image/jpeg", caption: "Ảnh mặt trước", sortOrder: 0 }),
     });
     const res = await POST(req, { params: { baseCode } });
     expect(res.status).toBe(200);
@@ -55,6 +57,20 @@ describe("/api/products/[baseCode]/media", () => {
 
     const logs = await prisma.changeLogEntry.findMany({ where: { versionId } });
     expect(logs.some((l) => l.fieldPath === "media.tcsp")).toBe(true);
+  });
+
+  it("trả 400 khi storageKey không thuộc phiên bản hiện hành, không tạo dòng DB", async () => {
+    mockSession(UserRole.MANAGER);
+    const foreignKey = buildStorageKey(baseCode, "other-version-id", "anh.jpg");
+    const req = new Request(`http://localhost/api/products/${baseCode}/media`, {
+      method: "POST",
+      body: JSON.stringify({ tab: "tcsp", storageKey: foreignKey, mimeType: "image/jpeg" }),
+    });
+    const res = await POST(req, { params: { baseCode } });
+    expect(res.status).toBe(400);
+
+    const asset = await prisma.mediaAsset.findFirst({ where: { storageKey: foreignKey } });
+    expect(asset).toBeNull();
   });
 
   afterAll(async () => {

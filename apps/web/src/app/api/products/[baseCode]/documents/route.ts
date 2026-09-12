@@ -30,6 +30,11 @@ export async function POST(req: Request, { params }: { params: { baseCode: strin
   }
   const versionId = product.currentVersionId;
 
+  const expectedPrefix = `products/${params.baseCode}/${versionId}/`;
+  if (!parsed.data.storageKey.startsWith(expectedPrefix)) {
+    return NextResponse.json({ error: "storageKey không hợp lệ cho phiên bản này" }, { status: 400 });
+  }
+
   const created = await prisma.$transaction(async (tx) => {
     const docsData = await tx.documentsData.upsert({ where: { versionId }, update: {}, create: { versionId } });
     const doc = await tx.productDocument.create({

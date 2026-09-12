@@ -33,6 +33,11 @@ export async function POST(req: Request, { params }: { params: { baseCode: strin
   }
   const versionId = product.currentVersionId;
 
+  const expectedPrefix = `products/${params.baseCode}/${versionId}/`;
+  if (!parsed.data.storageKey.startsWith(expectedPrefix)) {
+    return NextResponse.json({ error: "storageKey không hợp lệ cho phiên bản này" }, { status: 400 });
+  }
+
   const created = await prisma.$transaction(async (tx) => {
     const parentId = await resolveMediaParentId(tx, versionId, parsed.data.tab);
     const fkField = mediaForeignKeyField(parsed.data.tab);
