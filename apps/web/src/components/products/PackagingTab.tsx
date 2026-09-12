@@ -10,16 +10,18 @@ import type { ProductDetail } from "@/lib/products/get-product-detail";
 export function PackagingTab({
   product,
   editing,
-  onDoneEditing,
+  onDoneEditing = () => {},
   mediaUrls = {},
+  version: versionOverride,
 }: {
   product: ProductDetail;
   editing: boolean;
-  onDoneEditing: () => void;
+  onDoneEditing?: () => void;
   mediaUrls?: Record<string, string>;
+  version?: NonNullable<ProductDetail["currentVersion"]>;
 }) {
   const router = useRouter();
-  const version = product.currentVersion!;
+  const version = versionOverride ?? product.currentVersion!;
   const packaging = version.packaging;
   const [instructions, setInstructions] = useState(packaging?.instructions ?? "");
   const [specialNotes, setSpecialNotes] = useState(packaging?.specialNotes ?? "");

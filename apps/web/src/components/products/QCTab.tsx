@@ -10,16 +10,18 @@ import type { ProductDetail } from "@/lib/products/get-product-detail";
 export function QCTab({
   product,
   editing,
-  onDoneEditing,
+  onDoneEditing = () => {},
   mediaUrls = {},
+  version: versionOverride,
 }: {
   product: ProductDetail;
   editing: boolean;
-  onDoneEditing: () => void;
+  onDoneEditing?: () => void;
   mediaUrls?: Record<string, string>;
+  version?: NonNullable<ProductDetail["currentVersion"]>;
 }) {
   const router = useRouter();
-  const version = product.currentVersion!;
+  const version = versionOverride ?? product.currentVersion!;
   const qc = version.qc;
   const [checklist, setChecklist] = useState(qc?.checklist ?? "");
   const [knownDefects, setKnownDefects] = useState(qc?.knownDefects ?? "");

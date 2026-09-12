@@ -20,16 +20,18 @@ interface SpecRow {
 export function TCSPTab({
   product,
   editing,
-  onDoneEditing,
+  onDoneEditing = () => {},
   mediaUrls = {},
+  version: versionOverride,
 }: {
   product: ProductDetail;
   editing: boolean;
-  onDoneEditing: () => void;
+  onDoneEditing?: () => void;
   mediaUrls?: Record<string, string>;
+  version?: NonNullable<ProductDetail["currentVersion"]>;
 }) {
   const router = useRouter();
-  const version = product.currentVersion!;
+  const version = versionOverride ?? product.currentVersion!;
   const tcsp = version.tcsp;
   const [materialCode, setMaterialCode] = useState(tcsp?.materialCode ?? "");
   const [description, setDescription] = useState(tcsp?.description ?? "");
@@ -113,7 +115,7 @@ export function TCSPTab({
       <div className="space-y-3 text-sm">
         <VersionBanner version={{ baseCode: product.baseCode, versionNumber: version.versionNumber, amisProductId: version.amisProductId, isCurrent: version.isCurrent }} />
         <a
-          href={`/api/products/${product.baseCode}/tcsp/export`}
+          href={`/api/products/${product.baseCode}/tcsp/export?version=${version.versionNumber}`}
           className="inline-block rounded border border-brand-600 px-3 py-1 text-sm text-brand-600 hover:bg-brand-50"
         >
           Tải TCSP (.xlsx)

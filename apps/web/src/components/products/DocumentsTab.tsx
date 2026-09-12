@@ -11,16 +11,18 @@ const KIND_OPTIONS = ["COA", "MSDS", "ROHS", "OTHER"] as const;
 export function DocumentsTab({
   product,
   editing,
-  onDoneEditing,
+  onDoneEditing = () => {},
   mediaUrls = {},
+  version: versionOverride,
 }: {
   product: ProductDetail;
   editing: boolean;
-  onDoneEditing: () => void;
+  onDoneEditing?: () => void;
   mediaUrls?: Record<string, string>;
+  version?: NonNullable<ProductDetail["currentVersion"]>;
 }) {
   const router = useRouter();
-  const version = product.currentVersion!;
+  const version = versionOverride ?? product.currentVersion!;
   const files = version.documents?.files ?? [];
   const bannerVersion = { baseCode: product.baseCode, versionNumber: version.versionNumber, amisProductId: version.amisProductId, isCurrent: version.isCurrent };
 
