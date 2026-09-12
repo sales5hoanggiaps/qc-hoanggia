@@ -24,7 +24,7 @@ export function ProductDetailTabs({
   const [activeTab, setActiveTab] = useState<TabName>("Tiêu chuẩn sản phẩm");
   const [editing, setEditing] = useState(false);
   const canEdit = role === UserRole.MANAGER || role === UserRole.ADMIN;
-  const editableTabs: TabName[] = ["Tiêu chuẩn sản phẩm", "QC sản phẩm", "Quy cách đóng gói"];
+  const editableTabs: TabName[] = ["Tiêu chuẩn sản phẩm", "QC sản phẩm", "Quy cách đóng gói", "Giấy tờ sản phẩm"];
   const showEditButton = canEdit && editableTabs.includes(activeTab) && !editing;
 
   function switchTab(tab: TabName) {
@@ -62,7 +62,9 @@ export function ProductDetailTabs({
         {activeTab === "Quy cách đóng gói" && (
           <PackagingTab product={product} editing={editing && activeTab === "Quy cách đóng gói"} onDoneEditing={() => setEditing(false)} mediaUrls={mediaUrls} />
         )}
-        {activeTab === "Giấy tờ sản phẩm" && <DocumentsTab product={product} />}
+        {activeTab === "Giấy tờ sản phẩm" && (
+          <DocumentsTab product={product} editing={editing && activeTab === "Giấy tờ sản phẩm"} onDoneEditing={() => setEditing(false)} mediaUrls={mediaUrls} />
+        )}
         {activeTab === "Lịch sử phiên bản" && <HistoryTab product={product} />}
       </div>
     </div>
