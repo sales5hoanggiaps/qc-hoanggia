@@ -316,9 +316,15 @@ model SyncLog {
 
 ## 9. Tìm kiếm & Danh sách mã hàng
 
-- **Trang tìm kiếm (trang chủ):** 1 ô tìm kiếm, chấp nhận mã gốc hoặc mã có version, và tên khách hàng; so khớp gần đúng không phân biệt hoa/thường bằng Postgres `ILIKE` (đủ dùng ở quy mô vài nghìn mã hàng, không cần công cụ tìm kiếm ngoài). Tìm theo khách hàng trả về toàn bộ mã hàng của khách đó.
-- **Trang Danh sách mã hàng:** bảng Mã hàng / Tên hàng hoá / Loại sản phẩm / Trạng thái, lọc theo Loại sản phẩm và Trạng thái (đặc biệt lọc nhanh các mã `PENDING_QC` cần bổ sung), có phân trang.
+**(Chốt thiết kế chi tiết 2026-09-12)**
+
+- **Trang tìm kiếm (trang chủ, `/`):** 1 ô tìm kiếm (form GET, `?q=`), server component đọc `searchParams`, cả 3 vai trò dùng được.
+  - **Khớp mã có hậu tố phiên bản** (`<baseCode>.<n>`, dùng lại mẫu regex đã kiểm chứng ở `apps/worker/src/sync/version-detection.ts` — nhân bản 1 hàm nhỏ tương tự sang `apps/web`, không đáng tách package riêng cho 1 hàm thuần) **và khớp đúng 1 kết quả duy nhất** → chuyển hướng thẳng: nếu là phiên bản hiện hành → `/products/[baseCode]`; nếu là phiên bản cũ → `/products/[baseCode]/v/[n]` (chỉ đọc).
+  - Ngược lại (mã gốc không hậu tố, khớp gần đúng, hoặc theo tên khách hàng): so khớp gần đúng không phân biệt hoa/thường bằng Postgres `ILIKE` trên `Product.baseCode` **hoặc** tên khách hàng (join `ProductCustomer` → `Customer`) — đủ dùng ở quy mô vài nghìn mã hàng, không cần công cụ tìm kiếm ngoài. Tìm theo khách hàng trả về toàn bộ mã hàng của khách đó.
+  - **Kết quả hiển thị ngay trên trang chủ**, danh sách dưới ô tìm kiếm (Mã hàng, Tên hàng hoá, Khách hàng nếu tìm theo khách) — không chuyển trang.
+- **Trang Danh sách mã hàng (`/products`, route riêng):** bảng Mã hàng / Tên hàng hoá / Loại sản phẩm / Trạng thái, lọc theo Loại sản phẩm và Trạng thái qua `searchParams` (đặc biệt lọc nhanh các mã `PENDING_QC` cần bổ sung), phân trang 20 dòng/trang. Cả 3 vai trò xem được.
 - Click vào 1 dòng kết quả (ở cả 2 trang) → mở trang chi tiết mã hàng (5 tab).
+- Thêm link "Danh sách mã hàng" vào điều hướng (`DashboardNav.tsx`, đã có sẵn từ Foundation).
 
 ## 10. Hạ tầng, triển khai, vận hành
 
