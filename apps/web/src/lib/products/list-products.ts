@@ -21,8 +21,16 @@ export interface ListProductsResult {
   totalPages: number;
 }
 
+/** Chuẩn hoá số trang đầu vào: bất kỳ giá trị nào không phải số nguyên dương hữu hạn
+ * (Infinity, NaN, số âm, 0, số thập phân) đều rơi về trang 1 thay vì lọt xuống Prisma. */
+function normalizePage(rawPage: number): number {
+  if (!Number.isFinite(rawPage)) return 1;
+  const truncated = Math.trunc(rawPage);
+  return truncated < 1 ? 1 : truncated;
+}
+
 export async function listProducts(params: ListProductsParams): Promise<ListProductsResult> {
-  const page = Math.max(1, params.page ?? 1);
+  const page = normalizePage(params.page ?? 1);
   const where = {
     ...(params.categoryId ? { categoryId: params.categoryId } : {}),
     ...(params.status ? { status: params.status } : {}),

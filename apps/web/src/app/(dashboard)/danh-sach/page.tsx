@@ -9,7 +9,7 @@ const STATUS_LABELS: Record<ProductStatus, string> = {
 };
 
 function isProductStatus(value: string): value is ProductStatus {
-  return value in STATUS_LABELS;
+  return Object.hasOwn(STATUS_LABELS, value);
 }
 
 export default async function ProductListPage({

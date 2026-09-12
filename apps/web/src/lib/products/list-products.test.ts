@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { prisma } from "@qc/db";
-import { listProducts } from "./list-products";
+import { listProducts, PAGE_SIZE } from "./list-products";
 
 const prefix = `LIST${Date.now()}`;
 let categoryId: string;
@@ -58,6 +58,68 @@ describe("listProducts", () => {
   afterAll(async () => {
     await prisma.product.deleteMany({ where: { id: { in: productIds } } });
     await prisma.category.deleteMany({ where: { id: categoryId } });
+    await prisma.$disconnect();
+  });
+});
+
+describe("listProducts — phân trang", () => {
+  const pagingPrefix = `LISTPAGE${Date.now()}`;
+  let pagingCategoryId: string;
+  const pagingProductIds: string[] = [];
+
+  beforeAll(async () => {
+    const category = await prisma.category.create({ data: { name: `Danh mục phân trang ${pagingPrefix}` } });
+    pagingCategoryId = category.id;
+
+    // PAGE_SIZE + 1 mã hàng cùng 1 danh mục riêng biệt → lọc theo categoryId này cho kết quả
+    // xác định tuyệt đối (không phụ thuộc dữ liệu thật đã có sẵn trong DB), đủ để kiểm tra
+    // công thức skip/totalPages đầu cuối — đúng nguyên nhân gốc của bug page: Infinity.
+    for (let i = 0; i < PAGE_SIZE + 1; i++) {
+      const p = await prisma.product.create({
+        data: {
+          baseCode: `${pagingPrefix}P${i}`,
+          amisProductId: `amis-${pagingPrefix}P${i}`,
+          status: "ACTIVE",
+          categoryId: pagingCategoryId,
+        },
+      });
+      pagingProductIds.push(p.id);
+    }
+  });
+
+  it("không truyền page → trang 1 có đúng PAGE_SIZE mã, tổng 2 trang", async () => {
+    const result = await listProducts({ categoryId: pagingCategoryId });
+    expect(result.items).toHaveLength(PAGE_SIZE);
+    expect(result.totalPages).toBe(2);
+  });
+
+  it("page: 2 → chỉ còn đúng 1 mã (mã thứ 21)", async () => {
+    const result = await listProducts({ categoryId: pagingCategoryId, page: 2 });
+    expect(result.items).toHaveLength(1);
+  });
+
+  it("page: Infinity → không crash, coi như trang 1", async () => {
+    const result = await listProducts({ categoryId: pagingCategoryId, page: Infinity });
+    expect(result.page).toBe(1);
+    expect(result.items).toHaveLength(PAGE_SIZE);
+  });
+
+  it("page: 2.5 → làm tròn về số nguyên (trang 2), không lỗi phân số", async () => {
+    const result = await listProducts({ categoryId: pagingCategoryId, page: 2.5 });
+    expect(Number.isInteger(result.page)).toBe(true);
+    expect(result.page).toBe(2);
+  });
+
+  it("page: -3 và page: 0 → coi như trang 1", async () => {
+    const negative = await listProducts({ categoryId: pagingCategoryId, page: -3 });
+    expect(negative.page).toBe(1);
+    const zero = await listProducts({ categoryId: pagingCategoryId, page: 0 });
+    expect(zero.page).toBe(1);
+  });
+
+  afterAll(async () => {
+    await prisma.product.deleteMany({ where: { id: { in: pagingProductIds } } });
+    await prisma.category.deleteMany({ where: { id: pagingCategoryId } });
     await prisma.$disconnect();
   });
 });
