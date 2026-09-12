@@ -36,8 +36,6 @@ export async function searchProducts(rawQuery: string): Promise<SearchOutcome> {
         return { redirectTo, results: [] };
       }
     }
-    // Không tìm thấy đúng phiên bản đó (vd gõ nhầm số version) — rơi xuống tìm gần đúng bên
-    // dưới bằng nguyên chuỗi gõ vào, không coi đây là lỗi.
   }
 
   // Fallback search: if version-suffix parsed but version doesn't exist (e.g. user typed
