@@ -112,6 +112,12 @@ export function TCSPTab({
     return (
       <div className="space-y-3 text-sm">
         <VersionBanner version={{ baseCode: product.baseCode, versionNumber: version.versionNumber, amisProductId: version.amisProductId, isCurrent: version.isCurrent }} />
+        <a
+          href={`/api/products/${product.baseCode}/tcsp/export`}
+          className="inline-block rounded border border-brand-600 px-3 py-1 text-sm text-brand-600 hover:bg-brand-50"
+        >
+          Tải TCSP (.xlsx)
+        </a>
         <p><strong>Mã NL:</strong> {tcsp?.materialCode || "—"}</p>
         <p><strong>Mô tả:</strong> {tcsp?.description || "—"}</p>
         <p><strong>Người lập:</strong> {tcsp?.preparedBy || "—"} · <strong>Người duyệt:</strong> {tcsp?.approvedBy || "—"} · <strong>Ngày duyệt:</strong> {tcsp?.approvedAt ? new Date(tcsp.approvedAt).toLocaleDateString("vi-VN") : "—"}</p>

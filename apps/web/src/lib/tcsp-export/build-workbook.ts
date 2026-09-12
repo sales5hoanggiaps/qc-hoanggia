@@ -45,6 +45,11 @@ export interface TcspExportInput {
   approvedAt: Date | null;
   specRows: TcspExportSpecRow[];
   imageBuffer: Buffer | null; // ảnh đầu tiên (sortOrder nhỏ nhất) của tab TCSP, nếu có
+  // Định dạng thật của `imageBuffer` — exceljs chỉ hỗ trợ 3 giá trị này và dùng đúng chuỗi này để ghi
+  // Content-Type thật trong [Content_Types].xml của file .xlsx (xem content-types-xform.js), không
+  // chỉ là tên file — nhãn sai định dạng (vd bytes PNG nhưng khai "jpeg") có thể khiến Excel không
+  // đọc được ảnh. Optional + mặc định "jpeg" bên dưới để không phá test/behaviour cũ của Task 6.
+  imageExtension?: "jpeg" | "png" | "gif";
 }
 
 export async function buildTcspWorkbook(input: TcspExportInput): Promise<Buffer> {
@@ -67,7 +72,7 @@ export async function buildTcspWorkbook(input: TcspExportInput): Promise<Buffer>
     // 2) `sheet.addImage`'s kiểu `tl`/`br` đòi đúng class `Anchor` (có field private colWidth/
     //    rowHeight/worksheet) chứ không phải interface `IAnchor` — không thể dựng 1 object literal
     //    thỏa mãn được; runtime thực tế chỉ cần đúng `col`/`row`.
-    const imageId = wb.addImage({ buffer: input.imageBuffer as any, extension: "jpeg" });
+    const imageId = wb.addImage({ buffer: input.imageBuffer as any, extension: input.imageExtension ?? "jpeg" });
     sheet.addImage(imageId, {
       tl: { col: 1, row: 3 },
       br: { col: 6, row: 4 },
