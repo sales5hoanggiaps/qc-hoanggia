@@ -417,11 +417,22 @@ describe("upsertProductFromAmis", () => {
     const newKey = v2!.tcsp!.media[0].storageKey;
     expect(newKey).not.toBe(originalKey); // file ĐỘC LẬP, không dùng chung storageKey
 
+    // Xác nhận bản sao ở MinIO là 1 object THẬT, ĐỘC LẬP, giống hệt byte-for-byte với bản gốc — không
+    // chỉ storageKey khác đi (khác key không tự nó chứng minh CopyObject thực sự chạy; nếu copyObject
+    // bị vô hiệu hoá/không được gọi, newKey vẫn khác originalKey nhờ buildStorageKey random UUID, nhưng
+    // sẽ không có file thật nào ở newKey).
+    const newFileRes = await fetch(await getViewUrl(newKey));
+    expect(newFileRes.ok).toBe(true);
+    expect(Buffer.from(await newFileRes.arrayBuffer()).equals(content)).toBe(true);
+
     // Xóa media của bản MỚI (giả lập người dùng xóa ảnh ở phiên bản hiện hành) — bản GỐC (v1, chỉ đọc)
-    // phải còn nguyên. Đây chính là kịch bản xung đột spec §7 mô tả (kế thừa + xóa hẳn file).
+    // phải còn nguyên VÀ NỘI DUNG KHÔNG ĐỔI. Đây chính là kịch bản xung đột spec §7 mô tả (kế thừa +
+    // xóa hẳn file) — chỉ kiểm tra `.ok` là chưa đủ (xóa 1 key CHƯA TỪNG được tạo cũng là no-op, "còn
+    // đó" 1 cách vô nghĩa), nên phải so khớp bytes để chứng minh đúng là file gốc còn nguyên vẹn.
     await deleteObject(newKey);
     const originalStillThere = await fetch(await getViewUrl(originalKey));
     expect(originalStillThere.ok).toBe(true);
+    expect(Buffer.from(await originalStillThere.arrayBuffer()).equals(content)).toBe(true);
 
     await deleteObject(originalKey);
     // Dùng lại cleanupTestProduct (đã xoá đúng thứ tự TCSPData/MediaAsset trước ProductVersion)
