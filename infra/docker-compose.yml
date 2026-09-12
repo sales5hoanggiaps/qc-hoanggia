@@ -45,6 +45,13 @@ services:
       # Same reasoning: inside the Compose network the "minio" service name
       # resolves to the minio container, not "localhost".
       STORAGE_ENDPOINT: http://minio:9000
+      # Unlike STORAGE_ENDPOINT above, this one is handed to the BROWSER in
+      # presigned URLs — it must resolve from the user's machine, not from
+      # inside the Compose network, so "minio" (the internal hostname) would
+      # not work here. Port 9000 is published to the host below, so
+      # localhost:9000 works out of the box for local `docker compose up`;
+      # override via a real deployment's own .env for a real public hostname.
+      STORAGE_PUBLIC_ENDPOINT: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
     depends_on:
       - postgres
       - minio
