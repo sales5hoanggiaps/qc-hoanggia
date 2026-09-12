@@ -1,5 +1,7 @@
 import { prisma, ProductStatus, type PrismaTransactionClient } from "@qc/db";
 import { parseVersionSuffix } from "./version-detection";
+import { copyObject, buildStorageKey } from "@qc/storage";
+import { logger } from "../logger";
 
 export interface UpsertProductInput {
   amisProductId: string;
@@ -10,10 +12,32 @@ export interface UpsertProductInput {
 
 export type UpsertResult = { kind: "created" | "new_version" | "linked_existing"; productId: string };
 
+/** Trích tên file gốc từ storageKey (dạng products/<baseCode>/<versionId>/<uuid>-<tênfile>) để giữ
+ * nguyên tên khi sinh storageKey mới cho phiên bản kế thừa. */
+function extractFileName(storageKey: string): string {
+  const lastSegment = storageKey.split("/").pop() ?? storageKey;
+  const dashIndex = lastSegment.indexOf("-");
+  return dashIndex >= 0 ? lastSegment.slice(dashIndex + 1) : lastSegment;
+}
+
+/** Sao chép 1 file MinIO sang storageKey mới độc lập cho phiên bản mới (xem spec §7 — mỗi phiên bản
+ * phải sở hữu file riêng, không dùng chung storageKey, vì media bị xóa hẳn khi người dùng xóa).
+ * Lỗi copy 1 file KHÔNG được làm hỏng cả lần đồng bộ — trả `null`, bên gọi bỏ qua đúng file đó. */
+async function copyMediaFile(baseCode: string, toVersionId: string, oldStorageKey: string): Promise<string | null> {
+  const newKey = buildStorageKey(baseCode, toVersionId, extractFileName(oldStorageKey));
+  try {
+    await copyObject(oldStorageKey, newKey);
+    return newKey;
+  } catch (err) {
+    logger.warn(`Không sao chép được file ${oldStorageKey} sang phiên bản mới — bỏ qua, giữ lại các file khác:`, err);
+    return null;
+  }
+}
+
 /** Sao chép nội dung 4 mục từ 1 ProductVersion sang 1 ProductVersion mới (cùng dữ liệu, khoá ngoại mới).
  * Nhận `tx` (Prisma transaction client) thay vì dùng `prisma` toàn cục, để toàn bộ việc đọc/ghi bên
  * trong hàm này atomic cùng với phần còn lại của giao dịch gọi nó (xem upsertProductFromAmis). */
-async function cloneVersionContent(tx: PrismaTransactionClient, fromVersionId: string, toVersionId: string) {
+async function cloneVersionContent(tx: PrismaTransactionClient, fromVersionId: string, toVersionId: string, baseCode: string) {
   const [tcsp, qc, packaging, documents] = await Promise.all([
     tx.tCSPData.findUnique({ where: { versionId: fromVersionId }, include: { specRows: true, media: true } }),
     tx.qCData.findUnique({ where: { versionId: fromVersionId }, include: { media: true } }),
@@ -47,9 +71,12 @@ async function cloneVersionContent(tx: PrismaTransactionClient, fromVersionId: s
       });
     }
     for (const media of tcsp.media) {
-      await tx.mediaAsset.create({
-        data: { storageKey: media.storageKey, mimeType: media.mimeType, caption: media.caption, sortOrder: media.sortOrder, tcspId: newTcsp.id },
-      });
+      const newKey = await copyMediaFile(baseCode, toVersionId, media.storageKey);
+      if (newKey) {
+        await tx.mediaAsset.create({
+          data: { storageKey: newKey, mimeType: media.mimeType, caption: media.caption, sortOrder: media.sortOrder, tcspId: newTcsp.id },
+        });
+      }
     }
   }
 
@@ -58,9 +85,12 @@ async function cloneVersionContent(tx: PrismaTransactionClient, fromVersionId: s
       data: { versionId: toVersionId, checklist: qc.checklist, knownDefects: qc.knownDefects, specialNotes: qc.specialNotes },
     });
     for (const media of qc.media) {
-      await tx.mediaAsset.create({
-        data: { storageKey: media.storageKey, mimeType: media.mimeType, caption: media.caption, sortOrder: media.sortOrder, qcId: newQc.id },
-      });
+      const newKey = await copyMediaFile(baseCode, toVersionId, media.storageKey);
+      if (newKey) {
+        await tx.mediaAsset.create({
+          data: { storageKey: newKey, mimeType: media.mimeType, caption: media.caption, sortOrder: media.sortOrder, qcId: newQc.id },
+        });
+      }
     }
   }
 
@@ -69,18 +99,24 @@ async function cloneVersionContent(tx: PrismaTransactionClient, fromVersionId: s
       data: { versionId: toVersionId, instructions: packaging.instructions, specialNotes: packaging.specialNotes },
     });
     for (const media of packaging.media) {
-      await tx.mediaAsset.create({
-        data: { storageKey: media.storageKey, mimeType: media.mimeType, caption: media.caption, sortOrder: media.sortOrder, packagingId: newPackaging.id },
-      });
+      const newKey = await copyMediaFile(baseCode, toVersionId, media.storageKey);
+      if (newKey) {
+        await tx.mediaAsset.create({
+          data: { storageKey: newKey, mimeType: media.mimeType, caption: media.caption, sortOrder: media.sortOrder, packagingId: newPackaging.id },
+        });
+      }
     }
   }
 
   if (documents) {
     const newDocuments = await tx.documentsData.create({ data: { versionId: toVersionId } });
     for (const file of documents.files) {
-      await tx.productDocument.create({
-        data: { documentsId: newDocuments.id, kind: file.kind, label: file.label, storageKey: file.storageKey },
-      });
+      const newKey = await copyMediaFile(baseCode, toVersionId, file.storageKey);
+      if (newKey) {
+        await tx.productDocument.create({
+          data: { documentsId: newDocuments.id, kind: file.kind, label: file.label, storageKey: newKey },
+        });
+      }
     }
   }
 }
@@ -158,7 +194,7 @@ export async function upsertProductFromAmis(input: UpsertProductInput): Promise<
         // Luôn kế thừa nội dung từ phiên bản ĐANG là currentVersion (nội dung tốt nhất hiện có),
         // dù bản mới này có trở thành current hay không — 1 phiên bản cũ mới phát hiện vẫn nên
         // có sẵn 1 baseline nội dung thay vì trống trơn.
-        await cloneVersionContent(tx, currentVersion.id, newVersion.id);
+        await cloneVersionContent(tx, currentVersion.id, newVersion.id, existingBase.baseCode);
 
         if (becomesNewCurrent) {
           await tx.productVersion.update({ where: { id: currentVersion.id }, data: { isCurrent: false } });
@@ -176,7 +212,7 @@ export async function upsertProductFromAmis(input: UpsertProductInput): Promise<
 
         return { kind: "new_version" as const, productId: existingBase.id };
       },
-      { timeout: 10000 }
+      { timeout: 20000 } // tăng từ 10000 — cloneVersionContent giờ gọi CopyObject (network call MinIO) trong transaction
     );
   }
 

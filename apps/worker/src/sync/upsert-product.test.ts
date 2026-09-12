@@ -1,6 +1,7 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { prisma, ProductStatus } from "@qc/db";
 import { upsertProductFromAmis } from "./upsert-product";
+import { buildStorageKey, getUploadUrl, getViewUrl, deleteObject, ensureBucketExists } from "@qc/storage";
 
 const testBaseCode = `TESTUP${Date.now()}`;
 
@@ -384,5 +385,49 @@ describe("upsertProductFromAmis", () => {
     expect(afterSuffixed?.currentVersion?.versionNumber).toBe(1);
     const versionCount = await prisma.productVersion.count({ where: { productId: afterSuffixed!.id } });
     expect(versionCount).toBe(1); // không tạo thêm dòng ProductVersion nào
+  });
+
+  it("kế thừa media sang phiên bản mới bằng file ĐỘC LẬP — xóa media ở bản mới không ảnh hưởng bản cũ", async () => {
+    await ensureBucketExists();
+    // Lưu ý (khác brief gốc): parseVersionSuffix chỉ khớp baseCode có TỐI ĐA 4 chữ cái ở đầu (regex
+    // `^([A-Z]{1,4}\d{4,7})\.(\d{1,2})$`, xem version-detection.ts — cùng ràng buộc đã ghi chú ở test
+    // "TESTUP..." phía trên). "MEDCLONE" có 8 chữ cái nên `${baseCode}.2` sẽ KHÔNG BAO GIỜ được nhận
+    // diện là version-suffix của baseCode này — upsertProductFromAmis sẽ tạo 1 Product HOÀN TOÀN MỚI,
+    // không liên quan gì đến v1, và cloneVersionContent không bao giờ được gọi (test sẽ không kiểm tra
+    // đúng đường code cần kiểm tra). Dùng "MC" (2 chữ cái) + 6 chữ số cuối timestamp để khớp regex.
+    const baseCode = `MC${String(Date.now()).slice(-6)}`;
+    const product = await prisma.product.create({ data: { baseCode, amisProductId: `amis-${baseCode}`, status: "PENDING_QC" } });
+    const v1 = await prisma.productVersion.create({
+      data: { productId: product.id, versionNumber: 1, amisProductId: `amis-v1-${baseCode}`, name: "Bản 1", isCurrent: true },
+    });
+    await prisma.product.update({ where: { id: product.id }, data: { currentVersionId: v1.id } });
+
+    const tcsp = await prisma.tCSPData.create({ data: { versionId: v1.id, description: "Mô tả gốc" } });
+    const originalKey = buildStorageKey(baseCode, v1.id, "anh-goc.jpg");
+    const content = Buffer.from("noi dung anh goc");
+    const uploadUrl = await getUploadUrl({ storageKey: originalKey, mimeType: "image/jpeg", size: content.length });
+    await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": "image/jpeg", "Content-Length": String(content.length) }, body: content });
+    await prisma.mediaAsset.create({ data: { storageKey: originalKey, mimeType: "image/jpeg", sortOrder: 0, tcspId: tcsp.id } });
+
+    // Kích hoạt tạo phiên bản mới (.2) kế thừa nội dung + media từ v1.
+    await upsertProductFromAmis({ amisProductId: `amis-v2-${baseCode}`, code: `${baseCode}.2`, name: "Bản 2", description: null });
+
+    const v2 = await prisma.productVersion.findUnique({ where: { amisProductId: `amis-v2-${baseCode}` }, include: { tcsp: { include: { media: true } } } });
+    expect(v2?.tcsp?.media).toHaveLength(1);
+    const newKey = v2!.tcsp!.media[0].storageKey;
+    expect(newKey).not.toBe(originalKey); // file ĐỘC LẬP, không dùng chung storageKey
+
+    // Xóa media của bản MỚI (giả lập người dùng xóa ảnh ở phiên bản hiện hành) — bản GỐC (v1, chỉ đọc)
+    // phải còn nguyên. Đây chính là kịch bản xung đột spec §7 mô tả (kế thừa + xóa hẳn file).
+    await deleteObject(newKey);
+    const originalStillThere = await fetch(await getViewUrl(originalKey));
+    expect(originalStillThere.ok).toBe(true);
+
+    await deleteObject(originalKey);
+    // Dùng lại cleanupTestProduct (đã xoá đúng thứ tự TCSPData/MediaAsset trước ProductVersion)
+    // thay vì productVersion.deleteMany trực tiếp — TCSPData.versionId là FK ON DELETE RESTRICT
+    // (xem migration.sql), nên bản v1 VÀ bản v2 kế thừa (đều có TCSPData) sẽ chặn deleteMany nếu
+    // không xoá TCSPData trước.
+    await cleanupTestProduct(product.id);
   });
 });
