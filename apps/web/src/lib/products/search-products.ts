@@ -40,10 +40,15 @@ export async function searchProducts(rawQuery: string): Promise<SearchOutcome> {
     // dưới bằng nguyên chuỗi gõ vào, không coi đây là lỗi.
   }
 
+  // Fallback search: if version-suffix parsed but version doesn't exist (e.g. user typed
+  // "SB00194.9" but product only has v1), search by baseCode to still find the product.
+  // If no version-suffix parsed, search by original query q.
+  const searchTerm = parsed?.baseCode ?? q;
+
   const products = await prisma.product.findMany({
     where: {
       OR: [
-        { baseCode: { contains: q, mode: "insensitive" } },
+        { baseCode: { contains: searchTerm, mode: "insensitive" } },
         { customers: { some: { customer: { name: { contains: q, mode: "insensitive" } } } } },
       ],
     },

@@ -64,6 +64,14 @@ describe("searchProducts", () => {
     expect(outcome.results).toHaveLength(0);
   });
 
+  it("gõ mã.n với phiên bản không tồn tại (vd gõ nhầm số version) → fallback tìm theo mã gốc, không trả rỗng", async () => {
+    // Bug fix: user types SB00194.9 (v9 doesn't exist, only v1-v2) → should find product by baseCode,
+    // not return empty results because "SB00194.9" doesn't match "SB00194" via ILIKE.
+    const outcome = await searchProducts(`${baseCode}.9`);
+    expect(outcome.redirectTo).toBeNull();
+    expect(outcome.results.some((r) => r.baseCode === baseCode)).toBe(true);
+  });
+
   afterAll(async () => {
     await prisma.productCustomer.deleteMany({ where: { productId } });
     await prisma.customer.deleteMany({ where: { id: customerId } });
