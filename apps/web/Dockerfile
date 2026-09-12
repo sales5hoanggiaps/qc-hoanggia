@@ -46,6 +46,10 @@ COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/package.json ./package.json
 COPY --from=build /repo/packages/db/prisma ./packages/db/prisma
 COPY --from=build /repo/packages/db/package.json ./packages/db/package.json
+# assets/templates/tcsp-template.xlsx is read via fs at runtime (apps/web/src/lib/tcsp-export/
+# build-workbook.ts), not imported as a JS module — Next's standalone output only bundles what it
+# traces from imports, so this binary asset needs its own explicit COPY or TCSP export 500s in prod.
+COPY --from=build /repo/assets ./assets
 COPY apps/web/docker-entrypoint.sh ./apps/web/docker-entrypoint.sh
 RUN chmod +x ./apps/web/docker-entrypoint.sh
 EXPOSE 3000
