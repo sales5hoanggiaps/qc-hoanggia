@@ -62,4 +62,12 @@ describe("HistoryTab", () => {
       expect.objectContaining({ method: "PATCH" })
     );
   });
+
+  it("hiện thông báo lỗi khi PATCH thất bại, không refresh", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: "Lỗi test" }) }));
+    render(<HistoryTab product={makeProduct([makeVersion()])} role={UserRole.MANAGER} />);
+    fireEvent.click(screen.getByText("Xác nhận đã kiểm tra"));
+    await waitFor(() => expect(screen.getByText("Lỗi test")).toBeDefined());
+    expect(refresh).not.toHaveBeenCalled();
+  });
 });

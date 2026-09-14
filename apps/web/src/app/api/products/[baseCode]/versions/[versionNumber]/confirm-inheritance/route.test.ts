@@ -90,6 +90,20 @@ describe("/api/products/[baseCode]/versions/[versionNumber]/confirm-inheritance"
     expect(res.status).toBe(404);
   });
 
+  it("trả 404 khi versionNumber không tồn tại trên product có thật", async () => {
+    mockSession(UserRole.MANAGER);
+    const req = new Request(`http://localhost/api/products/${baseCode}/versions/999/confirm-inheritance`, { method: "PATCH" });
+    const res = await PATCH(req, { params: { baseCode, versionNumber: "999" } });
+    expect(res.status).toBe(404);
+  });
+
+  it("trả 404 (không phải 500) khi versionNumber không phải số", async () => {
+    mockSession(UserRole.MANAGER);
+    const req = new Request(`http://localhost/api/products/${baseCode}/versions/abc/confirm-inheritance`, { method: "PATCH" });
+    const res = await PATCH(req, { params: { baseCode, versionNumber: "abc" } });
+    expect(res.status).toBe(404);
+  });
+
   afterAll(async () => {
     await prisma.changeLogEntry.deleteMany({ where: { versionId } });
     await prisma.productVersion.deleteMany({ where: { id: versionId } });

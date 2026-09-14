@@ -19,6 +19,9 @@ export async function PATCH(req: Request, { params }: { params: { baseCode: stri
   if (!product) return NextResponse.json({ error: "Không tìm thấy mã hàng" }, { status: 404 });
 
   const versionNumber = Number(params.versionNumber);
+  if (!Number.isInteger(versionNumber)) {
+    return NextResponse.json({ error: "Không tìm thấy phiên bản" }, { status: 404 });
+  }
   const version = await prisma.productVersion.findFirst({ where: { productId: product.id, versionNumber } });
   if (!version) return NextResponse.json({ error: "Không tìm thấy phiên bản" }, { status: 404 });
 
