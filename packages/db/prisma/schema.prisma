@@ -91,6 +91,11 @@ model ProductVersion {
   description       String?
   isCurrent         Boolean  @default(true)
   createdByAmisSync Boolean  @default(true)
+  /// Đánh dấu bởi worker sync khi tên AMIS trôi lớn so với phiên bản hiện
+  /// hành lúc tạo (xem detectNameDrift, spec §12.1) — nội dung TCSP/QC/
+  /// Packaging/Documents vẫn được kế thừa như bình thường, nhưng
+  /// MANAGER/ADMIN cần xác nhận đã kiểm tra trước khi coi là đáng tin.
+  needsInheritanceReview Boolean @default(false)
   createdAt         DateTime @default(now())
 
   tcsp       TCSPData?
