@@ -7,10 +7,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-56 border-r bg-white">
-        <DashboardNav role={role} />
+      <aside className="w-64 shrink-0 border-r border-gray-200 bg-white">
+        <DashboardNav role={role} fullName={session!.user.fullName} />
       </aside>
-      <div className="flex-1">{children}</div>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }

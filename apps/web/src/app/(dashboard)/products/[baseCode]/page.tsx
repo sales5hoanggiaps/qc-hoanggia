@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getProductDetail } from "@/lib/products/get-product-detail";
 import { buildMediaUrlMap } from "@/lib/products/build-media-url-map";
 import { ProductDetailTabs } from "@/components/products/ProductDetailTabs";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 
 export default async function ProductDetailPage({ params }: { params: { baseCode: string } }) {
   const session = await auth();
@@ -18,14 +19,18 @@ export default async function ProductDetailPage({ params }: { params: { baseCode
   const mediaUrls = await buildMediaUrlMap(product.currentVersion);
 
   return (
-    <div className="p-6">
-      <h1 className="text-lg font-semibold">
-        {product.baseCode} — {product.currentVersion.name}
-      </h1>
-      <p className="mb-4 text-sm text-gray-500">
-        {product.category?.name ?? "Chưa phân loại"} · Trạng thái: {product.status}
-      </p>
-      <ProductDetailTabs product={product} role={session.user.role} mediaUrls={mediaUrls} />
+    <div className="p-8">
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <p className="text-sm font-medium text-brand-600">{product.baseCode}</p>
+          <h1 className="mt-0.5 text-2xl font-semibold text-gray-900">{product.currentVersion.name}</h1>
+          <p className="mt-1 text-sm text-gray-500">{product.category?.name ?? "Chưa phân loại"}</p>
+        </div>
+        <StatusBadge status={product.status} />
+      </div>
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-card">
+        <ProductDetailTabs product={product} role={session.user.role} mediaUrls={mediaUrls} />
+      </div>
     </div>
   );
 }

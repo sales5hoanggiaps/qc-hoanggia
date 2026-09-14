@@ -20,8 +20,8 @@ export function SyncPanel({ initialLogs }: { initialLogs: SyncLogRow[] }) {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <h1 className="text-lg font-semibold">Đồng bộ AMIS</h1>
+    <div className="space-y-6 p-8">
+      <h1 className="text-2xl font-semibold text-gray-900">Đồng bộ AMIS</h1>
       <button
         onClick={handleSync}
         disabled={syncing}

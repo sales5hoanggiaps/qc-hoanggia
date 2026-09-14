@@ -57,7 +57,7 @@ export function ProductDetailTabs({
 
   return (
     <div>
-      <div className="flex items-center justify-between border-b">
+      <div className="flex items-center justify-between border-b border-gray-200">
         <nav className="flex gap-1" role="tablist" aria-label="Nội dung mã hàng">
           {TABS.map((tab, i) => (
             <button
@@ -72,14 +72,16 @@ export function ProductDetailTabs({
               tabIndex={activeTab === tab ? 0 : -1}
               onClick={() => switchTab(tab)}
               onKeyDown={(e) => handleTabKeyDown(e, i)}
-              className={`px-3 py-2 text-sm ${activeTab === tab ? "border-b-2 border-brand-600 font-medium" : "text-gray-500"}`}
+              className={`-mb-px px-3 py-2 text-sm transition-colors ${
+                activeTab === tab ? "border-b-2 border-brand-600 font-medium text-brand-700" : "text-gray-500 hover:text-gray-700"
+              }`}
             >
               {tab}
             </button>
           ))}
         </nav>
         {showEditButton && (
-          <button onClick={() => setEditing(true)} className="mb-1 rounded bg-brand-600 px-3 py-1 text-sm text-white hover:bg-brand-700">
+          <button onClick={() => setEditing(true)} className="mb-1 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
             Chỉnh sửa
           </button>
         )}

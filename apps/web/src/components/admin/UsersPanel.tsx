@@ -69,8 +69,8 @@ export function UsersPanel() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <h1 className="text-lg font-semibold">Quản lý tài khoản</h1>
+    <div className="space-y-6 p-8">
+      <h1 className="text-2xl font-semibold text-gray-900">Quản lý tài khoản</h1>
 
       <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-2 rounded border bg-white p-4">
         <div>
