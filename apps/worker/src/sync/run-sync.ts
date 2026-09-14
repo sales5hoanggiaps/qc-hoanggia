@@ -53,6 +53,7 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
   let newVersions = 0;
   let updatedLinks = 0;
   let flaggedReview = 0;
+  let duplicateVersionCodes = 0;
 
   try {
     const [orders, customers] = await Promise.all([
@@ -93,6 +94,7 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
         });
         if (result.kind === "created") newProducts++;
         if (result.kind === "new_version") newVersions++;
+        if (result.kind === "linked_existing" && result.duplicateVersionNumber) duplicateVersionCodes++;
 
         if (customerId) {
           const orderDate = order.sale_order_date ? new Date(order.sale_order_date) : null;
@@ -141,17 +143,17 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
 
     await prisma.syncLog.update({
       where: { id: syncLog.id },
-      data: { finishedAt: new Date(), newProducts, updatedLinks, newVersions, flaggedReview },
+      data: { finishedAt: new Date(), newProducts, updatedLinks, newVersions, flaggedReview, duplicateVersionCodes },
     });
     logger.info(
-      `Đồng bộ AMIS xong: ${newProducts} mã mới, ${newVersions} phiên bản mới, ${updatedLinks} liên kết khách hàng, ${flaggedReview} mã cần xem xét.`
+      `Đồng bộ AMIS xong: ${newProducts} mã mới, ${newVersions} phiên bản mới, ${updatedLinks} liên kết khách hàng, ${flaggedReview} mã cần xem xét, ${duplicateVersionCodes} mã trùng versionNumber bị bỏ qua.`
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Lỗi không xác định";
     logger.error("Đồng bộ AMIS thất bại:", message);
     await prisma.syncLog.update({
       where: { id: syncLog.id },
-      data: { finishedAt: new Date(), errorMessage: message, newProducts, updatedLinks, newVersions, flaggedReview },
+      data: { finishedAt: new Date(), errorMessage: message, newProducts, updatedLinks, newVersions, flaggedReview, duplicateVersionCodes },
     });
   }
 

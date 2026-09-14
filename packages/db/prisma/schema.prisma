@@ -192,12 +192,16 @@ model ChangeLogEntry {
 }
 
 model SyncLog {
-  id            String    @id @default(cuid())
-  startedAt     DateTime  @default(now())
-  finishedAt    DateTime?
-  newProducts   Int       @default(0)
-  updatedLinks  Int       @default(0)
-  newVersions   Int       @default(0)
-  flaggedReview Int       @default(0)
-  errorMessage  String?
+  id                   String    @id @default(cuid())
+  startedAt            DateTime  @default(now())
+  finishedAt           DateTime?
+  newProducts          Int       @default(0)
+  updatedLinks         Int       @default(0)
+  newVersions          Int       @default(0)
+  flaggedReview        Int       @default(0)
+  /// Số mã AMIS bị bỏ qua vì versionNumber đã tồn tại sẵn cho baseCode đó (xem
+  /// upsert-product.ts's `existingWithSameNumber` — không tạo ProductVersion mới, cần
+  /// MANAGER/ADMIN rà soát thủ công xem có phải mã gốc bị dùng lại hay không, spec §12).
+  duplicateVersionCodes Int      @default(0)
+  errorMessage         String?
 }

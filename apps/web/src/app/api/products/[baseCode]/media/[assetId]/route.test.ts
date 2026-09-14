@@ -68,7 +68,7 @@ describe("/api/products/[baseCode]/media/[assetId]", () => {
     expect(res.status).toBe(403);
   });
 
-  it("MANAGER PATCH đổi được caption", async () => {
+  it("MANAGER PATCH đổi được caption, và ghi ChangeLogEntry (audit trail)", async () => {
     mockSession(UserRole.MANAGER);
     const req = new Request(`http://localhost/api/products/${baseCode}/media/${currentAssetId}`, {
       method: "PATCH",
@@ -79,6 +79,50 @@ describe("/api/products/[baseCode]/media/[assetId]", () => {
 
     const asset = await prisma.mediaAsset.findUnique({ where: { id: currentAssetId } });
     expect(asset?.caption).toBe("Ảnh mới");
+
+    const logs = await prisma.changeLogEntry.findMany({ where: { versionId: currentVersionId, fieldPath: "media.caption" } });
+    expect(logs).toHaveLength(1);
+    expect(logs[0].newValue).toBe("Ảnh mới");
+    expect(logs[0].changedBy).toBe("u1");
+  });
+
+  it("PATCH chỉ đổi sortOrder (kéo sắp xếp lại) — KHÔNG ghi ChangeLogEntry, tránh loãng lịch sử", async () => {
+    mockSession(UserRole.MANAGER);
+    const before = await prisma.changeLogEntry.count({ where: { versionId: currentVersionId, fieldPath: "media.caption" } });
+
+    const req = new Request(`http://localhost/api/products/${baseCode}/media/${currentAssetId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ sortOrder: 3 }),
+    });
+    const res = await PATCH(req, { params: { baseCode, assetId: currentAssetId } });
+    expect(res.status).toBe(200);
+
+    const asset = await prisma.mediaAsset.findUnique({ where: { id: currentAssetId } });
+    expect(asset?.sortOrder).toBe(3);
+
+    const after = await prisma.changeLogEntry.count({ where: { versionId: currentVersionId, fieldPath: "media.caption" } });
+    expect(after).toBe(before); // không tăng thêm dòng log nào so với trước khi PATCH sortOrder
+  });
+
+  it("PATCH caption giống hệt giá trị cũ — KHÔNG ghi ChangeLogEntry (không phải thay đổi thật)", async () => {
+    mockSession(UserRole.MANAGER);
+    const noop1 = new Request(`http://localhost/api/products/${baseCode}/media/${currentAssetId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ caption: "Không đổi gì cả" }),
+    });
+    await PATCH(noop1, { params: { baseCode, assetId: currentAssetId } });
+
+    const noop2 = new Request(`http://localhost/api/products/${baseCode}/media/${currentAssetId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ caption: "Không đổi gì cả" }),
+    });
+    const res = await PATCH(noop2, { params: { baseCode, assetId: currentAssetId } });
+    expect(res.status).toBe(200);
+
+    const logs = await prisma.changeLogEntry.findMany({
+      where: { versionId: currentVersionId, fieldPath: "media.caption", newValue: "Không đổi gì cả" },
+    });
+    expect(logs).toHaveLength(1); // chỉ 1 dòng từ lần PATCH ĐẦU (giá trị thật sự đổi), không phải 2
   });
 
   it("PATCH asset thuộc phiên bản KHÔNG phải hiện hành → 404", async () => {

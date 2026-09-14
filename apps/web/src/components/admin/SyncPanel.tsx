@@ -38,6 +38,8 @@ export function SyncPanel({ initialLogs }: { initialLogs: SyncLogRow[] }) {
             <th className="p-2">Mã mới</th>
             <th className="p-2">Phiên bản mới</th>
             <th className="p-2">Liên kết KH</th>
+            <th className="p-2">Cần xem xét</th>
+            <th className="p-2">Trùng version</th>
             <th className="p-2">Lỗi</th>
           </tr>
         </thead>
@@ -48,6 +50,8 @@ export function SyncPanel({ initialLogs }: { initialLogs: SyncLogRow[] }) {
               <td className="p-2">{log.newProducts}</td>
               <td className="p-2">{log.newVersions}</td>
               <td className="p-2">{log.updatedLinks}</td>
+              <td className="p-2">{log.flaggedReview}</td>
+              <td className="p-2">{log.duplicateVersionCodes}</td>
               <td className="p-2 text-red-600">{log.errorMessage || ""}</td>
             </tr>
           ))}
@@ -63,5 +67,7 @@ interface SyncLogRow {
   newProducts: number;
   newVersions: number;
   updatedLinks: number;
+  flaggedReview: number;
+  duplicateVersionCodes: number;
   errorMessage: string | null;
 }

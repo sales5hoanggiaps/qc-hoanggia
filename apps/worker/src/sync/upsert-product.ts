@@ -10,7 +10,9 @@ export interface UpsertProductInput {
   description: string | null;
 }
 
-export type UpsertResult = { kind: "created" | "new_version" | "linked_existing"; productId: string };
+export type UpsertResult =
+  | { kind: "created" | "new_version"; productId: string }
+  | { kind: "linked_existing"; productId: string; duplicateVersionNumber?: boolean };
 
 /** Trích tên file gốc từ storageKey (dạng products/<baseCode>/<versionId>/<uuid>-<tênfile>) để giữ
  * nguyên tên khi sinh storageKey mới cho phiên bản kế thừa. */
@@ -171,7 +173,16 @@ export async function upsertProductFromAmis(input: UpsertProductInput): Promise<
           where: { productId: existingBase.id, versionNumber: parsed.versionNumber },
         });
         if (existingWithSameNumber) {
-          return { kind: "linked_existing" as const, productId: existingBase.id };
+          // Gắn cờ và ghi log rõ ràng thay vì âm thầm bỏ qua (phát hiện ở final-fix-wave-report,
+          // xem spec §12): trường hợp này có nghĩa là mã AMIS `input.code` mang 1 số hậu tố `.N` đã
+          // TỪNG xuất hiện cho baseCode này rồi — hoặc là do AMIS gửi lại đúng mã cũ (vô hại), hoặc
+          // là dấu hiệu mã gốc đang bị dùng lại cho lô/khách hàng khác (như case SI08201/AA03979 đã
+          // ghi nhận) mà lần này lại trùng đúng số hậu tố với 1 phiên bản đã có — MANAGER/ADMIN nên
+          // tự rà lại thủ công, không có cách nào worker tự phân biệt 2 khả năng này.
+          logger.warn(
+            `Mã AMIS ${input.amisProductId} (${input.code}) bị bỏ qua khi đồng bộ — versionNumber ${parsed.versionNumber} đã tồn tại sẵn cho mã gốc ${existingBase.baseCode} (ProductVersion.id=${existingWithSameNumber.id}). Không tạo phiên bản mới; cần rà soát thủ công xem đây có phải trường hợp mã gốc bị dùng lại (xem spec §12) hay không.`
+          );
+          return { kind: "linked_existing" as const, productId: existingBase.id, duplicateVersionNumber: true };
         }
 
         // Chỉ khi số phiên bản mới LỚN HƠN số hiện tại thì đây mới thật sự

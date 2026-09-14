@@ -14,6 +14,8 @@ export default async function SyncPage() {
     newProducts: l.newProducts,
     newVersions: l.newVersions,
     updatedLinks: l.updatedLinks,
+    flaggedReview: l.flaggedReview,
+    duplicateVersionCodes: l.duplicateVersionCodes,
     errorMessage: l.errorMessage,
   }));
 

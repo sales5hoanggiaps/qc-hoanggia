@@ -212,6 +212,61 @@ describe("runAmisSync", () => {
     await prisma.product.delete({ where: { id: product!.id } });
   });
 
+  it("2 mã khác chữ nhưng parse ra cùng versionNumber (vd .1 và .01) — mã sau bị bỏ qua, tăng duplicateVersionCodes, không tạo thêm ProductVersion", async () => {
+    // Tái hiện đúng kịch bản dedup thật (xem upsert-product.ts's existingWithSameNumber, và
+    // spec §12): 2 chuỗi mã AMIS khác nhau về mặt chữ ("<base>.1" và "<base>.01") đều khớp
+    // regex phiên bản và đều parse ra CÙNG 1 số version (Number("1") === Number("01")) — trước
+    // đây bị âm thầm bỏ qua không log/không đếm gì cả; giờ phải tăng duplicateVersionCodes và
+    // không được tạo thêm ProductVersion nào từ mã thứ 2.
+    const dupBaseCode = `TR${String(Date.now()).slice(-6)}`;
+
+    mockAmisResponses(
+      [
+        {
+          id: 801,
+          sale_order_no: "SO-TEST-DUP1",
+          account_name: "Khách hàng Test Dup",
+          sale_order_date: "2026-04-01T00:00:00.000+07:00",
+          modified_date: "2026-04-02T00:00:00.000+07:00",
+          organization_unit_name: "Phòng kinh doanh I",
+          sale_order_product_mappings: [
+            { product_code: `${dupBaseCode}.1`, description: "Sản phẩm test dup v1", custom_field3: null },
+          ],
+        },
+        {
+          id: 802,
+          sale_order_no: "SO-TEST-DUP2",
+          account_name: "Khách hàng Test Dup",
+          sale_order_date: "2026-04-15T00:00:00.000+07:00",
+          modified_date: "2026-04-01T00:00:00.000+07:00",
+          organization_unit_name: "Phòng kinh doanh I",
+          sale_order_product_mappings: [
+            { product_code: `${dupBaseCode}.01`, description: "Sản phẩm test dup v01 (chữ khác, số version giống)", custom_field3: null },
+          ],
+        },
+      ],
+      [{ id: 99995, account_name: "Khách hàng Test Dup" }]
+    );
+
+    const result = await runAmisSync();
+
+    const syncLog = await prisma.syncLog.findUnique({ where: { id: result.syncLogId } });
+    expect(syncLog?.duplicateVersionCodes).toBe(1);
+    expect(syncLog?.errorMessage).toBeNull();
+
+    const product = await prisma.product.findUnique({ where: { baseCode: dupBaseCode }, include: { versions: true } });
+    expect(product).not.toBeNull();
+    expect(product?.versions).toHaveLength(1); // chỉ ProductVersion từ mã ".1" — mã ".01" không tạo thêm
+
+    // Dọn dẹp thủ công — cùng lý do đã ghi ở test "TR" phía trên (baseCode không khớp tiền tố
+    // "TESTRUN" nên afterEach chung của file không tự dọn được).
+    await prisma.changeLogEntry.deleteMany({ where: { version: { productId: product!.id } } });
+    await prisma.productCustomer.deleteMany({ where: { productId: product!.id } });
+    await prisma.productVersion.deleteMany({ where: { productId: product!.id } });
+    await prisma.product.delete({ where: { id: product!.id } });
+    await prisma.customer.deleteMany({ where: { amisCustomerId: "99995" } });
+  });
+
   it("ghi SyncLog với errorMessage và không crash khi AMIS lỗi kết nối", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => {
       throw new Error("network unreachable (test)");

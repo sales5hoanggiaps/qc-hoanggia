@@ -31,6 +31,7 @@ export async function PATCH(req: Request, { params }: { params: { baseCode: stri
     if (err instanceof ForbiddenError) return NextResponse.json({ error: err.message }, { status: 403 });
     throw err;
   }
+  if (!session) return NextResponse.json({ error: "Không đủ quyền truy cập" }, { status: 403 });
 
   const found = await findEditableAsset(params.baseCode, params.assetId);
   if (!found) return NextResponse.json({ error: "Không tìm thấy file hoặc không phải phiên bản hiện hành" }, { status: 404 });
@@ -38,7 +39,21 @@ export async function PATCH(req: Request, { params }: { params: { baseCode: stri
   const parsed = patchSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  await prisma.mediaAsset.update({ where: { id: params.assetId }, data: parsed.data });
+  await prisma.$transaction(async (tx) => {
+    await tx.mediaAsset.update({ where: { id: params.assetId }, data: parsed.data });
+    // Chỉ ghi ChangeLogEntry khi CHÚ THÍCH thay đổi — đổi sortOrder (kéo lên/xuống sắp xếp lại
+    // thứ tự ảnh) không phải thay đổi nội dung thật, ghi log cho mỗi lần kéo-thả sẽ làm loãng
+    // lịch sử thay đổi hữu ích ở tab Lịch sử phiên bản.
+    if (parsed.data.caption !== undefined && parsed.data.caption !== found.asset.caption) {
+      await recordChanges(
+        found.versionId,
+        session.user.id,
+        [{ fieldPath: "media.caption", oldValue: found.asset.caption, newValue: parsed.data.caption }],
+        tx
+      );
+    }
+  });
+
   return NextResponse.json({ ok: true });
 }
 
