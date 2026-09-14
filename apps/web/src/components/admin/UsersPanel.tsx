@@ -10,6 +10,12 @@ interface UserRow {
   isActive: boolean;
 }
 
+const ROLE_LABELS: Record<UserRow["role"], string> = {
+  QC_STAFF: "Nhân viên QC",
+  MANAGER: "Quản trị viên",
+  ADMIN: "Quản trị hệ thống",
+};
+
 export function UsersPanel() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [fullName, setFullName] = useState("");
@@ -107,7 +113,7 @@ export function UsersPanel() {
             <tr key={u.id} className="border-b">
               <td className="p-2">{u.fullName}</td>
               <td className="p-2">{u.username}</td>
-              <td className="p-2">{u.role}</td>
+              <td className="p-2">{ROLE_LABELS[u.role]}</td>
               <td className="p-2">{u.isActive ? "Đang hoạt động" : "Đã khoá"}</td>
               <td className="space-x-2 p-2">
                 {u.role !== "ADMIN" && (
@@ -115,9 +121,13 @@ export function UsersPanel() {
                     {u.role === "MANAGER" ? "Bỏ Quản trị viên" : "Cấp Quản trị viên"}
                   </button>
                 )}
-                <button onClick={() => toggleActive(u)} className="text-brand-600 hover:underline">
-                  {u.isActive ? "Khoá" : "Mở khoá"}
-                </button>
+                {/* Tài khoản ADMIN không thể tự khoá lẫn nhau qua giao diện này — tránh trường hợp
+                    1 ADMIN khoá hết các ADMIN còn lại (kể cả chính mình) và không ai còn mở khoá được. */}
+                {u.role !== "ADMIN" && (
+                  <button onClick={() => toggleActive(u)} className="text-brand-600 hover:underline">
+                    {u.isActive ? "Khoá" : "Mở khoá"}
+                  </button>
+                )}
               </td>
             </tr>
           ))}

@@ -26,12 +26,8 @@ export default async function ProductOldVersionPage({
         {product.baseCode}.{version.versionNumber} — {version.name}
       </h1>
       <p className="mb-4 text-sm text-gray-500">Xem lại phiên bản cũ — không sửa được.</p>
-      <a
-        href={`/api/products/${product.baseCode}/tcsp/export?version=${version.versionNumber}`}
-        className="mb-4 inline-block rounded border border-brand-600 px-3 py-1 text-sm text-brand-600 hover:bg-brand-50"
-      >
-        Tải TCSP (.xlsx)
-      </a>
+      {/* Nút "Tải TCSP" của tab Tiêu chuẩn sản phẩm bên dưới đã tự trỏ đúng phiên bản này
+          (TCSPTab dùng version.versionNumber) — không lặp lại 1 nút ở đây nữa. */}
 
       <div className="mt-4 space-y-6 text-sm">
         <section>

@@ -60,4 +60,21 @@ describe("ProductDetailTabs", () => {
     fireEvent.click(screen.getByText("Lịch sử phiên bản"));
     expect(screen.queryByText("Chỉnh sửa")).toBeNull();
   });
+
+  it("mỗi nút tab có role=tab, đúng 1 nút aria-selected=true (tab đang mở)", () => {
+    render(<ProductDetailTabs product={makeProduct()} role={UserRole.QC_STAFF} mediaUrls={{}} />);
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs).toHaveLength(5);
+    const selected = tabs.filter((t) => t.getAttribute("aria-selected") === "true");
+    expect(selected).toHaveLength(1);
+    expect(selected[0].textContent).toBe("Tiêu chuẩn sản phẩm");
+  });
+
+  it("bấm phím mũi tên phải trên tab đang chọn thì chuyển sang tab kế tiếp", () => {
+    render(<ProductDetailTabs product={makeProduct()} role={UserRole.QC_STAFF} mediaUrls={{}} />);
+    const firstTab = screen.getByRole("tab", { name: "Tiêu chuẩn sản phẩm" });
+    fireEvent.keyDown(firstTab, { key: "ArrowRight" });
+    const qcTab = screen.getByRole("tab", { name: "QC sản phẩm" });
+    expect(qcTab.getAttribute("aria-selected")).toBe("true");
+  });
 });

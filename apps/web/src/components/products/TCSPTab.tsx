@@ -6,6 +6,7 @@ import { VersionBanner } from "./VersionBanner";
 import { MediaGallery } from "./MediaGallery";
 import { MediaUploader } from "./MediaUploader";
 import type { ProductDetail } from "@/lib/products/get-product-detail";
+import { extractErrorMessage } from "@/lib/extract-error-message";
 
 interface SpecRow {
   groupName: string;
@@ -21,12 +22,14 @@ export function TCSPTab({
   product,
   editing,
   onDoneEditing = () => {},
+  onSaved = () => {},
   mediaUrls = {},
   version: versionOverride,
 }: {
   product: ProductDetail;
   editing: boolean;
   onDoneEditing?: () => void;
+  onSaved?: () => void;
   mediaUrls?: Record<string, string>;
   version?: NonNullable<ProductDetail["currentVersion"]>;
 }) {
@@ -103,10 +106,12 @@ export function TCSPTab({
     });
     setSaving(false);
     if (!res.ok) {
-      setError("Lưu thất bại — thử lại.");
+      const body = await res.json().catch(() => null);
+      setError(extractErrorMessage(body, "Lưu thất bại — thử lại."));
       return;
     }
     onDoneEditing();
+    onSaved();
     router.refresh();
   }
 

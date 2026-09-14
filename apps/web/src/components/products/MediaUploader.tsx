@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { extractErrorMessage } from "@/lib/extract-error-message";
 
 interface MediaItem {
   id: string;
@@ -61,22 +62,35 @@ export function MediaUploader({
   async function handleDelete(assetId: string) {
     if (!confirm("Xoá file này?")) return;
     const res = await fetch(`/api/products/${baseCode}/media/${assetId}`, { method: "DELETE" });
-    if (res.ok) onChanged();
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      setError(extractErrorMessage(body, "Xoá file thất bại — thử lại."));
+      return;
+    }
+    onChanged();
   }
 
   async function handleMove(assetId: string, direction: -1 | 1) {
     const idx = media.findIndex((m) => m.id === assetId);
     const swapWith = idx + direction;
     if (idx < 0 || swapWith < 0 || swapWith >= media.length) return;
-    await Promise.all([
+    const [r1, r2] = await Promise.all([
       fetch(`/api/products/${baseCode}/media/${media[idx].id}`, { method: "PATCH", body: JSON.stringify({ sortOrder: swapWith }) }),
       fetch(`/api/products/${baseCode}/media/${media[swapWith].id}`, { method: "PATCH", body: JSON.stringify({ sortOrder: idx }) }),
     ]);
+    if (!r1.ok || !r2.ok) {
+      setError("Sắp xếp lại thất bại — thử lại.");
+      return;
+    }
     onChanged();
   }
 
   async function handleCaptionChange(assetId: string, caption: string) {
-    await fetch(`/api/products/${baseCode}/media/${assetId}`, { method: "PATCH", body: JSON.stringify({ caption: caption || null }) });
+    const res = await fetch(`/api/products/${baseCode}/media/${assetId}`, { method: "PATCH", body: JSON.stringify({ caption: caption || null }) });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      setError(extractErrorMessage(body, "Lưu chú thích thất bại — thử lại."));
+    }
   }
 
   return (
