@@ -120,7 +120,7 @@ export function ProductDetailTabs({
         {activeTab === "Giấy tờ sản phẩm" && (
           <DocumentsTab product={product} editing={editing && activeTab === "Giấy tờ sản phẩm"} onDoneEditing={() => setEditing(false)} mediaUrls={mediaUrls} />
         )}
-        {activeTab === "Lịch sử phiên bản" && <HistoryTab product={product} />}
+        {activeTab === "Lịch sử phiên bản" && <HistoryTab product={product} role={role} />}
       </div>
     </div>
   );
