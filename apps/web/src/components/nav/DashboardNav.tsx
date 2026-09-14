@@ -75,9 +75,10 @@ export function DashboardNav({ role, fullName }: { role: UserRole; fullName?: st
   return (
     <div className="flex h-full flex-col">
       <div className="border-b px-5 py-5">
-        {/* Wordmark tạm thời — sẽ thay bằng logo thật của Hoàng Gia khi có file. */}
-        <div className="text-lg font-bold tracking-tight text-brand-700">QC HOÀNG GIA</div>
-        <div className="mt-0.5 text-xs text-gray-400">Bộ phận Kiểm soát chất lượng</div>
+        {/* eslint-disable-next-line @next/next/no-img-element -- logo.svg là ảnh tĩnh trong public/,
+            không cần next/image tối ưu hoá (không phải ảnh do người dùng tải lên, không đổi kích thước). */}
+        <img src="/logo.svg" alt="Hoàng Gia PS" className="h-9 w-auto" />
+        <div className="mt-1.5 text-xs text-gray-400">Bộ phận Kiểm soát chất lượng</div>
       </div>
 
       <nav className="flex-1 space-y-0.5 p-3 text-sm">

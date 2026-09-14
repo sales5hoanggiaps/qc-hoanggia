@@ -29,9 +29,9 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-50 to-white px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          {/* Placeholder wordmark — thay bằng logo thật khi anh Quân gửi file */}
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white">HG</div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">QC Hoàng Gia</p>
+          {/* eslint-disable-next-line @next/next/no-img-element -- logo.svg tĩnh trong public/ */}
+          <img src="/logo.svg" alt="Hoàng Gia PS" className="mx-auto h-14 w-auto" />
+          <p className="mt-2 text-xs font-medium uppercase tracking-wide text-gray-400">Bộ phận Kiểm soát chất lượng</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-card">
