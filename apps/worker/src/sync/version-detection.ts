@@ -13,3 +13,37 @@ export function parseVersionSuffix(
   if (!match) return null;
   return { baseCode: match[1], versionNumber: Number(match[2]) };
 }
+
+/**
+ * Ngưỡng độ tương tự Jaccard (giao/hợp trên tập token đã chuẩn hoá) — dưới ngưỡng này coi là "trôi tên
+ * lớn" (xem spec §12.1). Chọn 0.3 dựa trên các ví dụ thật đã ghi nhận ở spec §12: 4/5 ca trôi lớn đã
+ * biết (SI06877/SI06878, SI00035, AA03979) rơi dưới 0.1; các ca chỉ đổi lô/cách gọi rơi trên 0.7.
+ *
+ * Ceiling đã biết (ghi trong spec §12.1): kiểu trôi như SI08201 (khuôn câu chung, chỉ đổi tên khách
+ * hàng ở cuối câu) giữ độ tương tự CAO vì phần khuôn câu chung chiếm đa số token — heuristic này KHÔNG
+ * bắt chắc chắn được kiểu đó. Chấp nhận, không xử lý trong phạm vi này.
+ */
+export const NAME_DRIFT_THRESHOLD = 0.3;
+
+function tokenize(name: string): Set<string> {
+  return new Set(
+    name
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((token) => token.length > 0)
+  );
+}
+
+export function detectNameDrift(oldName: string, newName: string): boolean {
+  const oldTokens = tokenize(oldName);
+  const newTokens = tokenize(newName);
+  if (oldTokens.size === 0 || newTokens.size === 0) return false;
+
+  let intersectionSize = 0;
+  for (const token of oldTokens) {
+    if (newTokens.has(token)) intersectionSize++;
+  }
+  const unionSize = new Set([...oldTokens, ...newTokens]).size;
+
+  return intersectionSize / unionSize < NAME_DRIFT_THRESHOLD;
+}
