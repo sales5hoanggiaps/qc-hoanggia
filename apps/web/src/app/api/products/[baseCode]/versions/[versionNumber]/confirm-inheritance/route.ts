@@ -22,6 +22,10 @@ export async function PATCH(req: Request, { params }: { params: { baseCode: stri
   const version = await prisma.productVersion.findFirst({ where: { productId: product.id, versionNumber } });
   if (!version) return NextResponse.json({ error: "Không tìm thấy phiên bản" }, { status: 404 });
 
+  // Idempotent no-op: nếu cờ đã là false (double-submit/retry/stale reload), không viết thêm
+  // ChangeLogEntry giả mạo một lượt chuyển true→false không thực xảy ra.
+  if (!version.needsInheritanceReview) return NextResponse.json({ ok: true });
+
   await prisma.$transaction([
     prisma.productVersion.update({ where: { id: version.id }, data: { needsInheritanceReview: false } }),
     prisma.changeLogEntry.create({
