@@ -64,8 +64,8 @@ export function PackagingTab({
     return (
       <div className="space-y-3 text-sm">
         <VersionBanner version={bannerVersion} />
-        <div><strong>Hướng dẫn đóng gói:</strong><p className="whitespace-pre-wrap">{packaging?.instructions || "Chưa có dữ liệu"}</p></div>
-        <div><strong>Lưu ý đóng gói:</strong><p className="whitespace-pre-wrap">{packaging?.specialNotes || "Chưa có dữ liệu"}</p></div>
+        <div><strong className="text-gray-900">Hướng dẫn đóng gói:</strong><p className="whitespace-pre-wrap text-gray-700">{packaging?.instructions || "Chưa có dữ liệu"}</p></div>
+        <div><strong className="text-gray-900">Lưu ý đóng gói:</strong><p className="whitespace-pre-wrap text-gray-700">{packaging?.specialNotes || "Chưa có dữ liệu"}</p></div>
         <MediaGallery media={packaging?.media ?? []} mediaUrls={mediaUrls} />
       </div>
     );
@@ -74,17 +74,17 @@ export function PackagingTab({
   return (
     <div className="space-y-3">
       <VersionBanner version={bannerVersion} />
-      <label className="block text-sm">Hướng dẫn đóng gói<textarea rows={5} className="mt-1 w-full rounded border px-2 py-1" value={instructions} onChange={(e) => setInstructions(e.target.value)} /></label>
-      <label className="block text-sm">Lưu ý đóng gói, tem nhãn dán thùng<textarea rows={5} className="mt-1 w-full rounded border px-2 py-1" value={specialNotes} onChange={(e) => setSpecialNotes(e.target.value)} /></label>
+      <label className="block text-sm text-gray-700">Hướng dẫn đóng gói<textarea rows={5} className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={instructions} onChange={(e) => setInstructions(e.target.value)} /></label>
+      <label className="block text-sm text-gray-700">Lưu ý đóng gói, tem nhãn dán thùng<textarea rows={5} className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={specialNotes} onChange={(e) => setSpecialNotes(e.target.value)} /></label>
 
       <MediaUploader baseCode={product.baseCode} tab="packaging" media={packaging?.media ?? []} mediaUrls={mediaUrls} onChanged={() => router.refresh()} />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
-        <button onClick={handleSave} disabled={saving} className="rounded bg-brand-600 px-4 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50">
+        <button onClick={handleSave} disabled={saving} className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
           {saving ? "Đang lưu..." : "Lưu"}
         </button>
-        <button onClick={handleCancel} className="rounded border px-4 py-1.5 text-sm hover:bg-gray-50">Huỷ</button>
+        <button onClick={handleCancel} className="rounded-lg border border-gray-300 px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Huỷ</button>
       </div>
     </div>
   );

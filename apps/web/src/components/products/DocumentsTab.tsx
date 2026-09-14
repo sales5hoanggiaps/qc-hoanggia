@@ -78,10 +78,10 @@ export function DocumentsTab({
       {files.length === 0 ? (
         <p className="text-gray-400">Chưa có tài liệu nào</p>
       ) : (
-        <ul className="divide-y rounded border">
+        <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200">
           {files.map((f) => (
-            <li key={f.id} className="flex items-center justify-between p-2">
-              <span>
+            <li key={f.id} className="flex items-center justify-between px-3 py-2.5">
+              <span className="text-gray-700">
                 {KIND_LABELS[f.kind] ?? f.kind} — {f.label}
                 {mediaUrls[f.id] && (
                   <a href={mediaUrls[f.id]} target="_blank" rel="noreferrer" className="ml-2 text-brand-600 hover:underline">
@@ -89,7 +89,7 @@ export function DocumentsTab({
                   </a>
                 )}
               </span>
-              {editing && <button onClick={() => handleDelete(f.id)} className="text-red-600">Xoá</button>}
+              {editing && <button onClick={() => handleDelete(f.id)} className="text-sm font-medium text-red-600 hover:underline">Xoá</button>}
             </li>
           ))}
         </ul>
@@ -98,28 +98,28 @@ export function DocumentsTab({
       {editing && (
         // Khác TCSP/QC/Đóng gói: mỗi upload/xóa ở đây là 1 hành động lưu ngay lập tức, không có
         // buffer/"Lưu"/"Huỷ" gộp — nên nút thoát chỉ đơn giản là "Xong", không cần reset state.
-        <div className="space-y-2 rounded border p-3">
+        <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-sm">
+            <label className="text-sm text-gray-700">
               Loại tài liệu
-              <select className="mt-1 w-full rounded border px-2 py-1" value={kind} onChange={(e) => setKind(e.target.value as (typeof KIND_OPTIONS)[number])}>
+              <select className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={kind} onChange={(e) => setKind(e.target.value as (typeof KIND_OPTIONS)[number])}>
                 {KIND_OPTIONS.map((k) => (
                   <option key={k} value={k}>{KIND_LABELS[k]}</option>
                 ))}
               </select>
             </label>
-            <label className="text-sm">
+            <label className="text-sm text-gray-700">
               Tên tài liệu
-              <input className="mt-1 w-full rounded border px-2 py-1" value={label} onChange={(e) => setLabel(e.target.value)} />
+              <input className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={label} onChange={(e) => setLabel(e.target.value)} />
             </label>
           </div>
-          <label className="inline-block cursor-pointer rounded bg-brand-600 px-3 py-1.5 text-sm text-white hover:bg-brand-700">
+          <label className="inline-flex cursor-pointer items-center rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
             {uploading ? "Đang tải lên..." : "+ Chọn file"}
             <input type="file" className="hidden" disabled={uploading} onChange={handleFileChange} />
           </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div>
-            <button onClick={onDoneEditing} className="rounded border px-4 py-1.5 text-sm hover:bg-gray-50">Xong</button>
+            <button onClick={onDoneEditing} className="rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Xong</button>
           </div>
         </div>
       )}

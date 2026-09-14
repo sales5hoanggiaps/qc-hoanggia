@@ -72,67 +72,69 @@ export function UsersPanel() {
     <div className="space-y-6 p-8">
       <h1 className="text-2xl font-semibold text-gray-900">Quản lý tài khoản</h1>
 
-      <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-2 rounded border bg-white p-4">
+      <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-2 rounded-xl border border-gray-200 bg-white p-4 shadow-card">
         <div>
-          <label className="block text-xs font-medium">Họ tên</label>
-          <input className="rounded border px-2 py-1" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+          <label className="block text-xs font-medium text-gray-700">Họ tên</label>
+          <input className="mt-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
         </div>
         <div>
-          <label className="block text-xs font-medium">Tên đăng nhập</label>
-          <input className="rounded border px-2 py-1" value={username} onChange={(e) => setUsername(e.target.value)} required />
+          <label className="block text-xs font-medium text-gray-700">Tên đăng nhập</label>
+          <input className="mt-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={username} onChange={(e) => setUsername(e.target.value)} required />
         </div>
         <div>
-          <label className="block text-xs font-medium">Mật khẩu tạm</label>
-          <input className="rounded border px-2 py-1" value={tempPassword} onChange={(e) => setTempPassword(e.target.value)} required />
+          <label className="block text-xs font-medium text-gray-700">Mật khẩu tạm</label>
+          <input className="mt-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={tempPassword} onChange={(e) => setTempPassword(e.target.value)} required />
         </div>
         <div>
-          <label className="block text-xs font-medium">Vai trò</label>
-          <select className="rounded border px-2 py-1" value={role} onChange={(e) => setRole(e.target.value as "QC_STAFF" | "MANAGER")}>
+          <label className="block text-xs font-medium text-gray-700">Vai trò</label>
+          <select className="mt-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={role} onChange={(e) => setRole(e.target.value as "QC_STAFF" | "MANAGER")}>
             <option value="QC_STAFF">QC Staff</option>
             <option value="MANAGER">Quản trị viên</option>
           </select>
         </div>
-        <button type="submit" className="rounded bg-brand-600 px-4 py-1.5 text-white hover:bg-brand-700">
+        <button type="submit" className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
           Tạo tài khoản
         </button>
       </form>
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-b text-left">
-            <th className="p-2">Họ tên</th>
-            <th className="p-2">Tên đăng nhập</th>
-            <th className="p-2">Vai trò</th>
-            <th className="p-2">Trạng thái</th>
-            <th className="p-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u) => (
-            <tr key={u.id} className="border-b">
-              <td className="p-2">{u.fullName}</td>
-              <td className="p-2">{u.username}</td>
-              <td className="p-2">{ROLE_LABELS[u.role]}</td>
-              <td className="p-2">{u.isActive ? "Đang hoạt động" : "Đã khoá"}</td>
-              <td className="space-x-2 p-2">
-                {u.role !== "ADMIN" && (
-                  <button onClick={() => toggleManager(u)} className="text-brand-600 hover:underline">
-                    {u.role === "MANAGER" ? "Bỏ Quản trị viên" : "Cấp Quản trị viên"}
-                  </button>
-                )}
-                {/* Tài khoản ADMIN không thể tự khoá lẫn nhau qua giao diện này — tránh trường hợp
-                    1 ADMIN khoá hết các ADMIN còn lại (kể cả chính mình) và không ai còn mở khoá được. */}
-                {u.role !== "ADMIN" && (
-                  <button onClick={() => toggleActive(u)} className="text-brand-600 hover:underline">
-                    {u.isActive ? "Khoá" : "Mở khoá"}
-                  </button>
-                )}
-              </td>
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-card">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+              <th className="px-3 py-2.5">Họ tên</th>
+              <th className="px-3 py-2.5">Tên đăng nhập</th>
+              <th className="px-3 py-2.5">Vai trò</th>
+              <th className="px-3 py-2.5">Trạng thái</th>
+              <th className="px-3 py-2.5"></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="px-3 py-2.5 text-gray-700">{u.fullName}</td>
+                <td className="px-3 py-2.5 text-gray-700">{u.username}</td>
+                <td className="px-3 py-2.5 text-gray-700">{ROLE_LABELS[u.role]}</td>
+                <td className="px-3 py-2.5 text-gray-700">{u.isActive ? "Đang hoạt động" : "Đã khoá"}</td>
+                <td className="space-x-3 px-3 py-2.5">
+                  {u.role !== "ADMIN" && (
+                    <button onClick={() => toggleManager(u)} className="font-medium text-brand-600 hover:underline">
+                      {u.role === "MANAGER" ? "Bỏ Quản trị viên" : "Cấp Quản trị viên"}
+                    </button>
+                  )}
+                  {/* Tài khoản ADMIN không thể tự khoá lẫn nhau qua giao diện này — tránh trường hợp
+                      1 ADMIN khoá hết các ADMIN còn lại (kể cả chính mình) và không ai còn mở khoá được. */}
+                  {u.role !== "ADMIN" && (
+                    <button onClick={() => toggleActive(u)} className="font-medium text-brand-600 hover:underline">
+                      {u.isActive ? "Khoá" : "Mở khoá"}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -9,13 +9,13 @@ export function MediaGallery({ media, mediaUrls }: { media: MediaItem[]; mediaUr
   return (
     <div className="grid grid-cols-4 gap-2">
       {media.map((m) => (
-        <div key={m.id} className="rounded border p-2 text-xs">
+        <div key={m.id} className="rounded-lg border border-gray-200 p-2 text-xs">
           {m.mimeType.startsWith("video/") ? (
-            <video src={mediaUrls[m.id]} controls className="h-20 w-full rounded object-cover" />
+            <video src={mediaUrls[m.id]} controls className="h-20 w-full rounded-md object-cover" />
           ) : (
-            <img src={mediaUrls[m.id]} alt={m.caption ?? ""} className="h-20 w-full rounded object-cover" />
+            <img src={mediaUrls[m.id]} alt={m.caption ?? ""} className="h-20 w-full rounded-md object-cover" />
           )}
-          {m.caption && <p className="mt-1">{m.caption}</p>}
+          {m.caption && <p className="mt-1 text-gray-600">{m.caption}</p>}
         </div>
       ))}
     </div>

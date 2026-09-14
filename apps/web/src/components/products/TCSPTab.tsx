@@ -121,32 +121,34 @@ export function TCSPTab({
         <VersionBanner version={{ baseCode: product.baseCode, versionNumber: version.versionNumber, amisProductId: version.amisProductId, isCurrent: version.isCurrent }} />
         <a
           href={`/api/products/${product.baseCode}/tcsp/export?version=${version.versionNumber}`}
-          className="inline-block rounded border border-brand-600 px-3 py-1 text-sm text-brand-600 hover:bg-brand-50"
+          className="inline-block rounded-lg border border-brand-600 px-3 py-1.5 text-sm font-medium text-brand-600 hover:bg-brand-50"
         >
           Tải TCSP (.xlsx)
         </a>
-        <p><strong>Mã NL:</strong> {tcsp?.materialCode || "—"}</p>
-        <p><strong>Mô tả:</strong> {tcsp?.description || "—"}</p>
-        <p><strong>Người lập:</strong> {tcsp?.preparedBy || "—"} · <strong>Người duyệt:</strong> {tcsp?.approvedBy || "—"} · <strong>Ngày duyệt:</strong> {tcsp?.approvedAt ? new Date(tcsp.approvedAt).toLocaleDateString("vi-VN") : "—"}</p>
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b text-left">
-              <th className="p-2">Nhóm</th><th className="p-2">Tiêu chí</th><th className="p-2">Thông số</th>
-              <th className="p-2">D/sai</th><th className="p-2">Đơn vị</th><th className="p-2">Ghi chú</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(tcsp?.specRows ?? []).map((r) => (
-              <tr key={r.id} className="border-b">
-                <td className="p-2">{r.groupName}</td><td className="p-2">{r.criterion}</td><td className="p-2">{r.value}</td>
-                <td className="p-2">{r.tolerance}</td><td className="p-2">{r.unit}</td><td className="p-2">{r.note}</td>
+        <p className="text-gray-700"><strong className="text-gray-900">Mã NL:</strong> {tcsp?.materialCode || "—"}</p>
+        <p className="text-gray-700"><strong className="text-gray-900">Mô tả:</strong> {tcsp?.description || "—"}</p>
+        <p className="text-gray-700"><strong className="text-gray-900">Người lập:</strong> {tcsp?.preparedBy || "—"} · <strong className="text-gray-900">Người duyệt:</strong> {tcsp?.approvedBy || "—"} · <strong className="text-gray-900">Ngày duyệt:</strong> {tcsp?.approvedAt ? new Date(tcsp.approvedAt).toLocaleDateString("vi-VN") : "—"}</p>
+        <div className="overflow-hidden rounded-lg border border-gray-200">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                <th className="px-3 py-2">Nhóm</th><th className="px-3 py-2">Tiêu chí</th><th className="px-3 py-2">Thông số</th>
+                <th className="px-3 py-2">D/sai</th><th className="px-3 py-2">Đơn vị</th><th className="px-3 py-2">Ghi chú</th>
               </tr>
-            ))}
-            {(tcsp?.specRows ?? []).length === 0 && (
-              <tr><td colSpan={6} className="p-2 text-gray-400">Chưa có dữ liệu</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(tcsp?.specRows ?? []).map((r) => (
+                <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="px-3 py-2.5">{r.groupName}</td><td className="px-3 py-2.5">{r.criterion}</td><td className="px-3 py-2.5">{r.value}</td>
+                  <td className="px-3 py-2.5">{r.tolerance}</td><td className="px-3 py-2.5">{r.unit}</td><td className="px-3 py-2.5">{r.note}</td>
+                </tr>
+              ))}
+              {(tcsp?.specRows ?? []).length === 0 && (
+                <tr><td colSpan={6} className="px-3 py-4 text-gray-400">Chưa có dữ liệu</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
         <MediaGallery media={tcsp?.media ?? []} mediaUrls={mediaUrls} />
       </div>
     );
@@ -156,51 +158,53 @@ export function TCSPTab({
     <div className="space-y-3">
       <VersionBanner version={{ baseCode: product.baseCode, versionNumber: version.versionNumber, amisProductId: version.amisProductId, isCurrent: version.isCurrent }} />
       <div className="grid grid-cols-2 gap-3">
-        <label className="text-sm">Mã NL<input className="mt-1 w-full rounded border px-2 py-1" value={materialCode} onChange={(e) => setMaterialCode(e.target.value)} /></label>
-        <label className="text-sm">Người lập<input className="mt-1 w-full rounded border px-2 py-1" value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></label>
+        <label className="text-sm text-gray-700">Mã NL<input className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={materialCode} onChange={(e) => setMaterialCode(e.target.value)} /></label>
+        <label className="text-sm text-gray-700">Người lập<input className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></label>
       </div>
-      <label className="block text-sm">Mô tả<textarea className="mt-1 w-full rounded border px-2 py-1" value={description} onChange={(e) => setDescription(e.target.value)} /></label>
+      <label className="block text-sm text-gray-700">Mô tả<textarea className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={description} onChange={(e) => setDescription(e.target.value)} /></label>
       <div className="grid grid-cols-2 gap-3">
-        <label className="text-sm">Người duyệt<input className="mt-1 w-full rounded border px-2 py-1" value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} /></label>
-        <label className="text-sm">Ngày duyệt<input type="date" className="mt-1 w-full rounded border px-2 py-1" value={approvedAt} onChange={(e) => setApprovedAt(e.target.value)} /></label>
+        <label className="text-sm text-gray-700">Người duyệt<input className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} /></label>
+        <label className="text-sm text-gray-700">Ngày duyệt<input type="date" className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={approvedAt} onChange={(e) => setApprovedAt(e.target.value)} /></label>
       </div>
 
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-b text-left">
-            <th className="p-2">Nhóm</th><th className="p-2">Tiêu chí</th><th className="p-2">Thông số</th>
-            <th className="p-2">D/sai</th><th className="p-2">Đơn vị</th><th className="p-2">Ghi chú</th><th className="p-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="border-b">
-              <td className="p-1">
-                <select className="rounded border px-1 py-0.5" value={row.groupName} onChange={(e) => updateRow(i, "groupName", e.target.value)}>
-                  <option value="Kích thước">Kích thước</option>
-                  <option value="TC khác">TC khác</option>
-                </select>
-              </td>
-              <td className="p-1"><input className="w-full rounded border px-1 py-0.5" value={row.criterion} onChange={(e) => updateRow(i, "criterion", e.target.value)} /></td>
-              <td className="p-1"><input className="w-full rounded border px-1 py-0.5" value={row.value} onChange={(e) => updateRow(i, "value", e.target.value)} /></td>
-              <td className="p-1"><input className="w-full rounded border px-1 py-0.5" value={row.tolerance} onChange={(e) => updateRow(i, "tolerance", e.target.value)} /></td>
-              <td className="p-1"><input className="w-full rounded border px-1 py-0.5" value={row.unit} onChange={(e) => updateRow(i, "unit", e.target.value)} /></td>
-              <td className="p-1"><input className="w-full rounded border px-1 py-0.5" value={row.note} onChange={(e) => updateRow(i, "note", e.target.value)} /></td>
-              <td className="p-1"><button onClick={() => removeRow(i)} className="text-red-600">Xoá</button></td>
+      <div className="overflow-hidden rounded-lg border border-gray-200">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+              <th className="px-3 py-2">Nhóm</th><th className="px-3 py-2">Tiêu chí</th><th className="px-3 py-2">Thông số</th>
+              <th className="px-3 py-2">D/sai</th><th className="px-3 py-2">Đơn vị</th><th className="px-3 py-2">Ghi chú</th><th className="px-3 py-2"></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <button onClick={addRow} className="text-sm text-brand-600 hover:underline">+ Thêm dòng</button>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} className="border-b border-gray-100">
+                <td className="p-1.5">
+                  <select className="rounded-md border border-gray-300 px-1.5 py-1 text-sm focus:border-brand-500 focus:ring-brand-500" value={row.groupName} onChange={(e) => updateRow(i, "groupName", e.target.value)}>
+                    <option value="Kích thước">Kích thước</option>
+                    <option value="TC khác">TC khác</option>
+                  </select>
+                </td>
+                <td className="p-1.5"><input className="w-full rounded-md border border-gray-300 px-1.5 py-1 text-sm focus:border-brand-500 focus:ring-brand-500" value={row.criterion} onChange={(e) => updateRow(i, "criterion", e.target.value)} /></td>
+                <td className="p-1.5"><input className="w-full rounded-md border border-gray-300 px-1.5 py-1 text-sm focus:border-brand-500 focus:ring-brand-500" value={row.value} onChange={(e) => updateRow(i, "value", e.target.value)} /></td>
+                <td className="p-1.5"><input className="w-full rounded-md border border-gray-300 px-1.5 py-1 text-sm focus:border-brand-500 focus:ring-brand-500" value={row.tolerance} onChange={(e) => updateRow(i, "tolerance", e.target.value)} /></td>
+                <td className="p-1.5"><input className="w-full rounded-md border border-gray-300 px-1.5 py-1 text-sm focus:border-brand-500 focus:ring-brand-500" value={row.unit} onChange={(e) => updateRow(i, "unit", e.target.value)} /></td>
+                <td className="p-1.5"><input className="w-full rounded-md border border-gray-300 px-1.5 py-1 text-sm focus:border-brand-500 focus:ring-brand-500" value={row.note} onChange={(e) => updateRow(i, "note", e.target.value)} /></td>
+                <td className="p-1.5"><button onClick={() => removeRow(i)} className="text-sm font-medium text-red-600 hover:underline">Xoá</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button onClick={addRow} className="text-sm font-medium text-brand-600 hover:underline">+ Thêm dòng</button>
 
       <MediaUploader baseCode={product.baseCode} tab="tcsp" media={tcsp?.media ?? []} mediaUrls={mediaUrls} onChanged={() => router.refresh()} />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
-        <button onClick={handleSave} disabled={saving} className="rounded bg-brand-600 px-4 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50">
+        <button onClick={handleSave} disabled={saving} className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
           {saving ? "Đang lưu..." : "Lưu"}
         </button>
-        <button onClick={handleCancel} className="rounded border px-4 py-1.5 text-sm hover:bg-gray-50">Huỷ</button>
+        <button onClick={handleCancel} className="rounded-lg border border-gray-300 px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Huỷ</button>
       </div>
     </div>
   );

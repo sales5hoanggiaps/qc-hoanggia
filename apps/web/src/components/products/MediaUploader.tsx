@@ -95,21 +95,21 @@ export function MediaUploader({
 
   return (
     <div className="space-y-2">
-      <label className="inline-block cursor-pointer rounded bg-brand-600 px-3 py-1.5 text-sm text-white hover:bg-brand-700">
+      <label className="inline-flex cursor-pointer items-center rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
         {uploading ? "Đang tải lên..." : "+ Chọn file"}
         <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" className="hidden" disabled={uploading} onChange={handleFileChange} />
       </label>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="grid grid-cols-4 gap-2">
         {media.map((m, i) => (
-          <div key={m.id} className="rounded border p-2 text-xs">
+          <div key={m.id} className="rounded-lg border border-gray-200 p-2 text-xs">
             {m.mimeType.startsWith("video/") ? (
-              <video src={mediaUrls[m.id]} controls className="h-20 w-full rounded object-cover" />
+              <video src={mediaUrls[m.id]} controls className="h-20 w-full rounded-md object-cover" />
             ) : (
-              <img src={mediaUrls[m.id]} alt={m.caption ?? ""} className="h-20 w-full rounded object-cover" />
+              <img src={mediaUrls[m.id]} alt={m.caption ?? ""} className="h-20 w-full rounded-md object-cover" />
             )}
             <input
-              className="mt-1 w-full rounded border px-1 py-0.5 text-xs"
+              className="mt-1 w-full rounded-md border border-gray-300 px-1.5 py-1 text-xs focus:border-brand-500 focus:ring-brand-500"
               placeholder="Chú thích"
               defaultValue={m.caption ?? ""}
               onBlur={(e) => handleCaptionChange(m.id, e.target.value)}
@@ -119,7 +119,7 @@ export function MediaUploader({
                 <button onClick={() => handleMove(m.id, -1)} disabled={i === 0} aria-label="Lên">↑</button>{" "}
                 <button onClick={() => handleMove(m.id, 1)} disabled={i === media.length - 1} aria-label="Xuống">↓</button>
               </span>
-              <button onClick={() => handleDelete(m.id)} className="text-red-600">Xoá</button>
+              <button onClick={() => handleDelete(m.id)} className="font-medium text-red-600">Xoá</button>
             </div>
           </div>
         ))}
