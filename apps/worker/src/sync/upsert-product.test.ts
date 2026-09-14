@@ -441,4 +441,61 @@ describe("upsertProductFromAmis", () => {
     // không xoá TCSPData trước.
     await cleanupTestProduct(product.id);
   });
+
+  it("tên trôi lớn so với phiên bản hiện hành — ProductVersion mới bị gắn cờ needsInheritanceReview + ghi ChangeLogEntry nameDrift", async () => {
+    const baseAmisId = `amis-${testBaseCode}-drift-v1`;
+    const versionBaseCode = `ZR${String(Date.now()).slice(-6)}`;
+
+    await upsertProductFromAmis({
+      amisProductId: baseAmisId,
+      code: `${versionBaseCode}.1`,
+      name: "Nhãn lọ Avinora bọt tắm gội cho bé",
+      description: null,
+    });
+
+    const result = await upsertProductFromAmis({
+      amisProductId: `${baseAmisId}-2`,
+      code: `${versionBaseCode}.2`,
+      name: "Tem giấy cán bóng Nước muối Sao Mai 500ml",
+      description: null,
+    });
+    expect(result.kind).toBe("new_version");
+
+    const product = await prisma.product.findUnique({
+      where: { baseCode: versionBaseCode },
+      include: { currentVersion: { include: { changeLogs: true } } },
+    });
+    expect(product?.currentVersion?.versionNumber).toBe(2);
+    expect(product?.currentVersion?.needsInheritanceReview).toBe(true);
+    const driftLog = product?.currentVersion?.changeLogs.find((l) => l.fieldPath === "nameDrift");
+    expect(driftLog?.oldValue).toBe("Nhãn lọ Avinora bọt tắm gội cho bé");
+    expect(driftLog?.newValue).toBe("Tem giấy cán bóng Nước muối Sao Mai 500ml");
+    expect(driftLog?.source).toBe("AMIS_SYNC");
+  });
+
+  it("tên KHÔNG trôi (chỉ đổi lô) — ProductVersion mới KHÔNG bị gắn cờ, không có ChangeLogEntry nameDrift", async () => {
+    const baseAmisId = `amis-${testBaseCode}-nodrift-v1`;
+    const versionBaseCode = `ZQ${String(Date.now()).slice(-6)}`;
+
+    await upsertProductFromAmis({
+      amisProductId: baseAmisId,
+      code: `${versionBaseCode}.1`,
+      name: "Nhãn ống nghiệm lấy máu Clot Activator 2ml lô 1",
+      description: null,
+    });
+
+    await upsertProductFromAmis({
+      amisProductId: `${baseAmisId}-2`,
+      code: `${versionBaseCode}.2`,
+      name: "Tem ống nghiệm lấy máu Clot Activator 2ml lô 2",
+      description: null,
+    });
+
+    const product = await prisma.product.findUnique({
+      where: { baseCode: versionBaseCode },
+      include: { currentVersion: { include: { changeLogs: true } } },
+    });
+    expect(product?.currentVersion?.needsInheritanceReview).toBe(false);
+    expect(product?.currentVersion?.changeLogs.some((l) => l.fieldPath === "nameDrift")).toBe(false);
+  });
 });

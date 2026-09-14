@@ -1,5 +1,5 @@
 import { prisma, ProductStatus, type PrismaTransactionClient } from "@qc/db";
-import { parseVersionSuffix } from "./version-detection";
+import { parseVersionSuffix, detectNameDrift } from "./version-detection";
 import { copyObject, buildStorageKey } from "@qc/storage";
 import { logger } from "../logger";
 
@@ -190,6 +190,7 @@ export async function upsertProductFromAmis(input: UpsertProductInput): Promise<
         // phát hiện; vẫn ghi nhận lại (tab Lịch sử phiên bản sau này cần
         // thấy nó) nhưng không được ghi đè currentVersion đang có.
         const becomesNewCurrent = parsed.versionNumber > currentVersion.versionNumber;
+        const nameDrifted = detectNameDrift(currentVersion.name, input.name);
 
         const newVersion = await tx.productVersion.create({
           data: {
@@ -200,12 +201,27 @@ export async function upsertProductFromAmis(input: UpsertProductInput): Promise<
             description: input.description,
             isCurrent: becomesNewCurrent,
             createdByAmisSync: true,
+            needsInheritanceReview: nameDrifted,
           },
         });
         // Luôn kế thừa nội dung từ phiên bản ĐANG là currentVersion (nội dung tốt nhất hiện có),
         // dù bản mới này có trở thành current hay không — 1 phiên bản cũ mới phát hiện vẫn nên
         // có sẵn 1 baseline nội dung thay vì trống trơn.
         await cloneVersionContent(tx, currentVersion.id, newVersion.id, existingBase.baseCode);
+
+        // Ghi vết audit khi tên trôi lớn (spec §12.1) — độc lập với becomesNewCurrent, vì cờ cảnh báo
+        // áp dụng cho MỌI ProductVersion mới tạo, không riêng bản trở thành current.
+        if (nameDrifted) {
+          await tx.changeLogEntry.create({
+            data: {
+              versionId: newVersion.id,
+              fieldPath: "nameDrift",
+              oldValue: currentVersion.name,
+              newValue: input.name,
+              source: "AMIS_SYNC",
+            },
+          });
+        }
 
         if (becomesNewCurrent) {
           await tx.productVersion.update({ where: { id: currentVersion.id }, data: { isCurrent: false } });
