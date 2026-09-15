@@ -69,7 +69,14 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
 
     const customerByName = new Map(customers.map((c) => [c.account_name, c]));
 
+    // Mô tả (tab Tiêu chuẩn sản phẩm) của phiên bản hiện hành phải luôn khớp đơn hàng GẦN NHẤT
+    // của mã đó (theo sale_order_date, không phải thứ tự fetch/modified_date — xem cùng lý do
+    // đã áp dụng cho lastOrderDate bên dưới). Gom lại theo Product.id trong lúc chạy vòng lặp,
+    // rồi áp dụng 1 lần sau khi hết vòng lặp chính.
+    const latestOrderDescByProductId = new Map<string, { date: Date; description: string }>();
+
     for (const order of ordersIn2026) {
+      const orderDate = order.sale_order_date ? new Date(order.sale_order_date) : null;
       let customerId: string | null = null;
       if (order.account_name) {
         const amisCustomer = customerByName.get(order.account_name);
@@ -96,8 +103,16 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
         if (result.kind === "new_version") newVersions++;
         if (result.kind === "linked_existing" && result.duplicateVersionNumber) duplicateVersionCodes++;
 
+        // Bỏ qua đơn không có ngày hoặc mô tả rỗng — không đủ căn cứ để so sánh "gần nhất" hay
+        // để ghi đè 1 Mô tả đã có bằng nội dung trống.
+        if (orderDate && mapping.description) {
+          const prevBest = latestOrderDescByProductId.get(result.productId);
+          if (!prevBest || orderDate > prevBest.date) {
+            latestOrderDescByProductId.set(result.productId, { date: orderDate, description: mapping.description });
+          }
+        }
+
         if (customerId) {
-          const orderDate = order.sale_order_date ? new Date(order.sale_order_date) : null;
           const existingLink = await prisma.productCustomer.findUnique({
             where: { productId_customerId: { productId: result.productId, customerId } },
           });
@@ -139,6 +154,37 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
           }
         }
       }
+    }
+
+    // Áp dụng Mô tả gom được ở trên vào TCSPData.description của phiên bản hiện hành — luôn ghi
+    // đè kể cả khi QC đã tự sửa tay (đã xác nhận: Mô tả phải luôn phản ánh đúng đơn hàng gần
+    // nhất), nhưng ghi ChangeLogEntry (nguồn AMIS_SYNC) để vẫn xem lại được ở tab Lịch sử phiên
+    // bản. Bỏ qua khi giá trị không đổi, tránh log rác mỗi lần sync.
+    for (const [productId, latest] of latestOrderDescByProductId) {
+      const product = await prisma.product.findUnique({
+        where: { id: productId },
+        include: { currentVersion: { include: { tcsp: true } } },
+      });
+      const currentVersion = product?.currentVersion;
+      if (!currentVersion) continue;
+
+      const oldDescription = currentVersion.tcsp?.description ?? null;
+      if (oldDescription === latest.description) continue;
+
+      await prisma.tCSPData.upsert({
+        where: { versionId: currentVersion.id },
+        update: { description: latest.description },
+        create: { versionId: currentVersion.id, description: latest.description },
+      });
+      await prisma.changeLogEntry.create({
+        data: {
+          versionId: currentVersion.id,
+          fieldPath: "description",
+          oldValue: oldDescription,
+          newValue: latest.description,
+          source: "AMIS_SYNC",
+        },
+      });
     }
 
     await prisma.syncLog.update({

@@ -32,6 +32,11 @@ describe("runAmisSync", () => {
     vi.unstubAllGlobals();
     const products = await prisma.product.findMany({ where: { baseCode: { startsWith: "TESTRUN" } } });
     for (const p of products) {
+      // Mô tả gần-đơn-hàng-nhất (xem test riêng bên dưới) có thể đã tạo TCSPData + ChangeLogEntry
+      // cho các mã TESTRUN* dùng chung ở nhiều test khác — phải xoá trước productVersion, nếu
+      // không FK constraint (TCSPData_versionId_fkey / ChangeLogEntry) chặn xoá.
+      await prisma.changeLogEntry.deleteMany({ where: { version: { productId: p.id } } });
+      await prisma.tCSPData.deleteMany({ where: { version: { productId: p.id } } });
       await prisma.productCustomer.deleteMany({ where: { productId: p.id } });
       await prisma.productVersion.deleteMany({ where: { productId: p.id } });
       await prisma.product.delete({ where: { id: p.id } });
@@ -203,10 +208,11 @@ describe("runAmisSync", () => {
     // (bắt buộc vì phải khớp regex parseVersionSuffix cho mã có hậu tố
     // version), nên afterEach chung của file này (lọc theo baseCode
     // startsWith "TESTRUN") không tự dọn được Product/ProductVersion này —
-    // phải xoá đúng thứ tự FK ở đây (ChangeLogEntry -> ProductCustomer ->
+    // phải xoá đúng thứ tự FK ở đây (ChangeLogEntry, TCSPData -> ProductCustomer ->
     // ProductVersion -> Product); Customer được afterEach dọn qua tiền tố
     // amisCustomerId "9999".
     await prisma.changeLogEntry.deleteMany({ where: { version: { productId: product!.id } } });
+    await prisma.tCSPData.deleteMany({ where: { version: { productId: product!.id } } });
     await prisma.productCustomer.deleteMany({ where: { productId: product!.id } });
     await prisma.productVersion.deleteMany({ where: { productId: product!.id } });
     await prisma.product.delete({ where: { id: product!.id } });
@@ -261,10 +267,114 @@ describe("runAmisSync", () => {
     // Dọn dẹp thủ công — cùng lý do đã ghi ở test "TR" phía trên (baseCode không khớp tiền tố
     // "TESTRUN" nên afterEach chung của file không tự dọn được).
     await prisma.changeLogEntry.deleteMany({ where: { version: { productId: product!.id } } });
+    await prisma.tCSPData.deleteMany({ where: { version: { productId: product!.id } } });
     await prisma.productCustomer.deleteMany({ where: { productId: product!.id } });
     await prisma.productVersion.deleteMany({ where: { productId: product!.id } });
     await prisma.product.delete({ where: { id: product!.id } });
     await prisma.customer.deleteMany({ where: { amisCustomerId: "99995" } });
+  });
+
+  it("Mô tả (tab Tiêu chuẩn sản phẩm) đồng bộ theo đơn hàng GẦN NHẤT (theo sale_order_date), không theo thứ tự fetch", async () => {
+    // Cùng kịch bản thứ tự như test lastOrderDate ở trên: đơn có sale_order_date MỚI HƠN được
+    // fetch/xử lý TRƯỚC, đơn CŨ HƠN xử lý SAU — nếu chỉ lấy giá trị của lần ghi cuối cùng trong
+    // vòng lặp thì Mô tả sẽ sai (thành mô tả của đơn cũ hơn).
+    const descBaseCode = `TR${String(Date.now()).slice(-6)}D1`;
+    mockAmisResponses(
+      [
+        {
+          id: 901,
+          sale_order_no: "SO-TEST-DESC-NEWER",
+          account_name: "Khách hàng Test Desc",
+          sale_order_date: "2026-08-20T00:00:00.000+07:00",
+          modified_date: "2026-08-20T00:00:00.000+07:00",
+          organization_unit_name: "Phòng kinh doanh I",
+          sale_order_product_mappings: [{ product_code: descBaseCode, description: "Mô tả đơn mới nhất", custom_field3: null }],
+        },
+        {
+          id: 902,
+          sale_order_no: "SO-TEST-DESC-OLDER",
+          account_name: "Khách hàng Test Desc",
+          sale_order_date: "2026-02-01T00:00:00.000+07:00",
+          modified_date: "2026-01-01T00:00:00.000+07:00",
+          organization_unit_name: "Phòng kinh doanh I",
+          sale_order_product_mappings: [{ product_code: descBaseCode, description: "Mô tả đơn cũ hơn", custom_field3: null }],
+        },
+      ],
+      [{ id: 99996, account_name: "Khách hàng Test Desc" }]
+    );
+
+    await runAmisSync();
+
+    const product = await prisma.product.findUnique({
+      where: { baseCode: descBaseCode },
+      include: { currentVersion: { include: { tcsp: true } } },
+    });
+    expect(product?.currentVersion?.tcsp?.description).toBe("Mô tả đơn mới nhất");
+
+    const log = await prisma.changeLogEntry.findFirst({
+      where: { versionId: product!.currentVersion!.id, fieldPath: "description", source: "AMIS_SYNC" },
+    });
+    expect(log?.newValue).toBe("Mô tả đơn mới nhất");
+    expect(log?.oldValue).toBeNull();
+
+    await prisma.changeLogEntry.deleteMany({ where: { version: { productId: product!.id } } });
+    await prisma.tCSPData.deleteMany({ where: { version: { productId: product!.id } } });
+    await prisma.productCustomer.deleteMany({ where: { productId: product!.id } });
+    await prisma.productVersion.deleteMany({ where: { productId: product!.id } });
+    await prisma.product.delete({ where: { id: product!.id } });
+    await prisma.customer.deleteMany({ where: { amisCustomerId: "99996" } });
+  });
+
+  it("không ghi đè Mô tả đã có bằng mô tả RỖNG từ đơn hàng gần nhất", async () => {
+    const descBaseCode = `TR${String(Date.now()).slice(-6)}D2`;
+
+    // Lần sync đầu: tạo mã hàng + Mô tả ban đầu.
+    mockAmisResponses(
+      [
+        {
+          id: 903,
+          sale_order_no: "SO-TEST-DESC-FIRST",
+          account_name: "Khách hàng Test Desc 2",
+          sale_order_date: "2026-01-10T00:00:00.000+07:00",
+          modified_date: "2026-01-10T00:00:00.000+07:00",
+          organization_unit_name: "Phòng kinh doanh I",
+          sale_order_product_mappings: [{ product_code: descBaseCode, description: "Mô tả gốc", custom_field3: null }],
+        },
+      ],
+      [{ id: 99997, account_name: "Khách hàng Test Desc 2" }]
+    );
+    await runAmisSync();
+
+    // Lần sync sau: đơn hàng MỚI HƠN nhưng KHÔNG có mô tả (mapping.description rỗng) — không
+    // được phép xoá mất Mô tả gốc đã có.
+    mockAmisResponses(
+      [
+        {
+          id: 904,
+          sale_order_no: "SO-TEST-DESC-NODESC",
+          account_name: "Khách hàng Test Desc 2",
+          sale_order_date: "2026-08-01T00:00:00.000+07:00",
+          modified_date: "2026-08-01T00:00:00.000+07:00",
+          organization_unit_name: "Phòng kinh doanh I",
+          sale_order_product_mappings: [{ product_code: descBaseCode, description: null, custom_field3: null }],
+        },
+      ],
+      [{ id: 99997, account_name: "Khách hàng Test Desc 2" }]
+    );
+    await runAmisSync();
+
+    const product = await prisma.product.findUnique({
+      where: { baseCode: descBaseCode },
+      include: { currentVersion: { include: { tcsp: true } } },
+    });
+    expect(product?.currentVersion?.tcsp?.description).toBe("Mô tả gốc");
+
+    await prisma.changeLogEntry.deleteMany({ where: { version: { productId: product!.id } } });
+    await prisma.tCSPData.deleteMany({ where: { version: { productId: product!.id } } });
+    await prisma.productCustomer.deleteMany({ where: { productId: product!.id } });
+    await prisma.productVersion.deleteMany({ where: { productId: product!.id } });
+    await prisma.product.delete({ where: { id: product!.id } });
+    await prisma.customer.deleteMany({ where: { amisCustomerId: "99997" } });
   });
 
   it("ghi SyncLog với errorMessage và không crash khi AMIS lỗi kết nối", async () => {
