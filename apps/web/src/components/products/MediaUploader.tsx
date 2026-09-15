@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { extractErrorMessage } from "@/lib/extract-error-message";
+import { MediaLightbox } from "./MediaLightbox";
 
 interface MediaItem {
   id: string;
@@ -26,6 +27,8 @@ export function MediaUploader({
 }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const openItem = media.find((m) => m.id === openId && !m.mimeType.startsWith("video/"));
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -106,9 +109,11 @@ export function MediaUploader({
             {m.mimeType.startsWith("video/") ? (
               <video src={mediaUrls[m.id]} controls className="h-40 w-full rounded-md bg-gray-50 object-contain" />
             ) : (
-              // object-contain — xem lý do ở MediaGallery.tsx (ảnh thật có thể có viền trắng lớn,
-              // cover sẽ cắt mất đúng phần nội dung).
-              <img src={mediaUrls[m.id]} alt={m.caption ?? ""} className="h-40 w-full rounded-md bg-gray-50 object-contain" />
+              <button type="button" onClick={() => setOpenId(m.id)} className="block w-full cursor-zoom-in">
+                {/* object-contain — xem lý do ở MediaGallery.tsx (ảnh thật có thể có viền trắng lớn,
+                    cover sẽ cắt mất đúng phần nội dung). */}
+                <img src={mediaUrls[m.id]} alt={m.caption ?? ""} className="h-40 w-full rounded-md bg-gray-50 object-contain" />
+              </button>
             )}
             <input
               className="mt-1 w-full rounded-md border border-gray-300 px-1.5 py-1 text-xs focus:border-brand-500 focus:ring-brand-500"
@@ -126,6 +131,7 @@ export function MediaUploader({
           </div>
         ))}
       </div>
+      {openItem && <MediaLightbox src={mediaUrls[openItem.id]} alt={openItem.caption ?? ""} onClose={() => setOpenId(null)} />}
     </div>
   );
 }
