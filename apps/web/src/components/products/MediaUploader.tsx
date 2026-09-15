@@ -100,13 +100,15 @@ export function MediaUploader({
         <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" className="hidden" disabled={uploading} onChange={handleFileChange} />
       </label>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {media.map((m, i) => (
           <div key={m.id} className="rounded-lg border border-gray-200 p-2 text-xs">
             {m.mimeType.startsWith("video/") ? (
-              <video src={mediaUrls[m.id]} controls className="h-20 w-full rounded-md object-cover" />
+              <video src={mediaUrls[m.id]} controls className="h-40 w-full rounded-md bg-gray-50 object-contain" />
             ) : (
-              <img src={mediaUrls[m.id]} alt={m.caption ?? ""} className="h-20 w-full rounded-md object-cover" />
+              // object-contain — xem lý do ở MediaGallery.tsx (ảnh thật có thể có viền trắng lớn,
+              // cover sẽ cắt mất đúng phần nội dung).
+              <img src={mediaUrls[m.id]} alt={m.caption ?? ""} className="h-40 w-full rounded-md bg-gray-50 object-contain" />
             )}
             <input
               className="mt-1 w-full rounded-md border border-gray-300 px-1.5 py-1 text-xs focus:border-brand-500 focus:ring-brand-500"
