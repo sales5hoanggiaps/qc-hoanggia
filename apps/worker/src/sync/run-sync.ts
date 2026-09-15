@@ -103,12 +103,13 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
         if (result.kind === "new_version") newVersions++;
         if (result.kind === "linked_existing" && result.duplicateVersionNumber) duplicateVersionCodes++;
 
-        // Bỏ qua đơn không có ngày hoặc mô tả rỗng — không đủ căn cứ để so sánh "gần nhất" hay
-        // để ghi đè 1 Mô tả đã có bằng nội dung trống.
-        if (orderDate && mapping.description) {
+        // Bỏ qua đơn không có ngày hoặc mô tả chi tiết rỗng — không đủ căn cứ để so sánh "gần
+        // nhất" hay để ghi đè 1 Mô tả đã có bằng nội dung trống. Dùng `custom_field5` (mô tả chi
+        // tiết thật của dòng hàng), KHÔNG dùng `description` (nhãn ngắn, lặp lại giữa nhiều mã).
+        if (orderDate && mapping.custom_field5) {
           const prevBest = latestOrderDescByProductId.get(result.productId);
           if (!prevBest || orderDate > prevBest.date) {
-            latestOrderDescByProductId.set(result.productId, { date: orderDate, description: mapping.description });
+            latestOrderDescByProductId.set(result.productId, { date: orderDate, description: mapping.custom_field5 });
           }
         }
 

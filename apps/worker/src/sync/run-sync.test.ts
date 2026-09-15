@@ -288,7 +288,9 @@ describe("runAmisSync", () => {
           sale_order_date: "2026-08-20T00:00:00.000+07:00",
           modified_date: "2026-08-20T00:00:00.000+07:00",
           organization_unit_name: "Phòng kinh doanh I",
-          sale_order_product_mappings: [{ product_code: descBaseCode, description: "Mô tả đơn mới nhất", custom_field3: null }],
+          sale_order_product_mappings: [
+            { product_code: descBaseCode, description: "Nhãn ngắn dùng chung", custom_field3: null, custom_field5: "Mô tả đơn mới nhất" },
+          ],
         },
         {
           id: 902,
@@ -297,7 +299,9 @@ describe("runAmisSync", () => {
           sale_order_date: "2026-02-01T00:00:00.000+07:00",
           modified_date: "2026-01-01T00:00:00.000+07:00",
           organization_unit_name: "Phòng kinh doanh I",
-          sale_order_product_mappings: [{ product_code: descBaseCode, description: "Mô tả đơn cũ hơn", custom_field3: null }],
+          sale_order_product_mappings: [
+            { product_code: descBaseCode, description: "Nhãn ngắn dùng chung", custom_field3: null, custom_field5: "Mô tả đơn cũ hơn" },
+          ],
         },
       ],
       [{ id: 99996, account_name: "Khách hàng Test Desc" }]
@@ -338,15 +342,17 @@ describe("runAmisSync", () => {
           sale_order_date: "2026-01-10T00:00:00.000+07:00",
           modified_date: "2026-01-10T00:00:00.000+07:00",
           organization_unit_name: "Phòng kinh doanh I",
-          sale_order_product_mappings: [{ product_code: descBaseCode, description: "Mô tả gốc", custom_field3: null }],
+          sale_order_product_mappings: [
+            { product_code: descBaseCode, description: "Nhãn ngắn dùng chung", custom_field3: null, custom_field5: "Mô tả gốc" },
+          ],
         },
       ],
       [{ id: 99997, account_name: "Khách hàng Test Desc 2" }]
     );
     await runAmisSync();
 
-    // Lần sync sau: đơn hàng MỚI HƠN nhưng KHÔNG có mô tả (mapping.description rỗng) — không
-    // được phép xoá mất Mô tả gốc đã có.
+    // Lần sync sau: đơn hàng MỚI HƠN nhưng KHÔNG có mô tả chi tiết (mapping.custom_field5 rỗng)
+    // — không được phép xoá mất Mô tả gốc đã có.
     mockAmisResponses(
       [
         {
@@ -356,7 +362,9 @@ describe("runAmisSync", () => {
           sale_order_date: "2026-08-01T00:00:00.000+07:00",
           modified_date: "2026-08-01T00:00:00.000+07:00",
           organization_unit_name: "Phòng kinh doanh I",
-          sale_order_product_mappings: [{ product_code: descBaseCode, description: null, custom_field3: null }],
+          sale_order_product_mappings: [
+            { product_code: descBaseCode, description: "Nhãn ngắn dùng chung", custom_field3: null, custom_field5: null },
+          ],
         },
       ],
       [{ id: 99997, account_name: "Khách hàng Test Desc 2" }]

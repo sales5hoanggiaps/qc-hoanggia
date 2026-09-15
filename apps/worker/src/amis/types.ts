@@ -8,8 +8,16 @@ export interface AmisProduct {
 
 export interface AmisProductMapping {
   product_code: string | null;
+  // Tên/mô tả NGẮN, thường lặp lại giữa nhiều mã hàng khác nhau (vd theo kích thước chung) —
+  // dùng làm tên mã hàng khi tạo mới, KHÔNG dùng cho "Mô tả" chi tiết ở tab TCSP.
   description: string | null;
+  // "Số PO/Mã hàng KH" (mã hàng theo cách gọi của khách hàng, không phải mô tả) — xác nhận thực
+  // tế qua project chị em hoanggia-crm (amis.ts) vốn đã dùng field này cho đúng mục đích đó.
   custom_field3: string | null;
+  // Mô tả CHI TIẾT thật của dòng hàng trong đơn (chất liệu, kích thước, quy cách in ấn, mã vạch...)
+  // — xác nhận bằng cách gọi thử API thật (2026-09-15): field này chứa nội dung chi tiết, khác hẳn
+  // `description` (thường là nhãn ngắn dùng chung cho nhiều mã). Đây là nguồn đúng cho TCSPData.description.
+  custom_field5: string | null;
 }
 
 export interface AmisSaleOrder {
