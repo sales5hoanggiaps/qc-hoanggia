@@ -2,11 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ProductGroup } from "@qc/db";
 import { VersionBanner } from "./VersionBanner";
 import { MediaGallery } from "./MediaGallery";
 import { MediaUploader } from "./MediaUploader";
 import type { ProductDetail } from "@/lib/products/get-product-detail";
 import { extractErrorMessage } from "@/lib/extract-error-message";
+
+const PRODUCT_GROUP_LABELS: Record<ProductGroup, string> = {
+  [ProductGroup.SAN_XUAT]: "Sản xuất",
+  [ProductGroup.THUONG_MAI]: "Thương mại",
+  [ProductGroup.GIA_CONG]: "Gia công",
+};
 
 interface SpecRow {
   groupName: string;
@@ -24,6 +31,7 @@ export function TCSPTab({
   onDoneEditing = () => {},
   onSaved = () => {},
   mediaUrls = {},
+  categories = [],
   version: versionOverride,
 }: {
   product: ProductDetail;
@@ -31,6 +39,7 @@ export function TCSPTab({
   onDoneEditing?: () => void;
   onSaved?: () => void;
   mediaUrls?: Record<string, string>;
+  categories?: { id: string; name: string }[];
   version?: NonNullable<ProductDetail["currentVersion"]>;
 }) {
   const router = useRouter();
@@ -41,6 +50,10 @@ export function TCSPTab({
   const [preparedBy, setPreparedBy] = useState(tcsp?.preparedBy ?? "");
   const [approvedBy, setApprovedBy] = useState(tcsp?.approvedBy ?? "");
   const [approvedAt, setApprovedAt] = useState(tcsp?.approvedAt ? tcsp.approvedAt.toISOString().slice(0, 10) : "");
+  // Nhóm/Loại sản phẩm thuộc Product (dùng chung mọi phiên bản), không phải TCSPData — nhưng đặt
+  // chung form/nút Lưu-Huỷ ở đây theo đúng chỗ anh Quân yêu cầu hiển thị.
+  const [productGroup, setProductGroup] = useState(product.productGroup ?? "");
+  const [categoryId, setCategoryId] = useState(product.categoryId ?? "");
   const [rows, setRows] = useState<SpecRow[]>(
     (tcsp?.specRows ?? []).map((r) => ({
       groupName: r.groupName,
@@ -86,6 +99,8 @@ export function TCSPTab({
         sortOrder: r.sortOrder,
       }))
     );
+    setProductGroup(product.productGroup ?? "");
+    setCategoryId(product.categoryId ?? "");
     setError(null);
     onDoneEditing();
   }
@@ -102,6 +117,8 @@ export function TCSPTab({
         approvedBy: approvedBy || null,
         approvedAt: approvedAt || null,
         specRows: rows.map((r, i) => ({ ...r, sortOrder: i })),
+        productGroup: productGroup || null,
+        categoryId: categoryId || null,
       }),
     });
     setSaving(false);
@@ -125,6 +142,7 @@ export function TCSPTab({
         >
           Tải TCSP (.xlsx)
         </a>
+        <p className="text-gray-700"><strong className="text-gray-900">Nhóm sản phẩm:</strong> {product.productGroup ? PRODUCT_GROUP_LABELS[product.productGroup] : "—"} · <strong className="text-gray-900">Loại sản phẩm:</strong> {product.category?.name ?? "—"}</p>
         <p className="text-gray-700"><strong className="text-gray-900">Mã NL:</strong> {tcsp?.materialCode || "—"}</p>
         <p className="text-gray-700"><strong className="text-gray-900">Mô tả:</strong> {tcsp?.description || "—"}</p>
         <p className="text-gray-700"><strong className="text-gray-900">Người lập:</strong> {tcsp?.preparedBy || "—"} · <strong className="text-gray-900">Người duyệt:</strong> {tcsp?.approvedBy || "—"} · <strong className="text-gray-900">Ngày duyệt:</strong> {tcsp?.approvedAt ? new Date(tcsp.approvedAt).toLocaleDateString("vi-VN") : "—"}</p>
@@ -157,6 +175,34 @@ export function TCSPTab({
   return (
     <div className="space-y-3">
       <VersionBanner version={{ baseCode: product.baseCode, versionNumber: version.versionNumber, amisProductId: version.amisProductId, isCurrent: version.isCurrent }} />
+      <div className="grid grid-cols-2 gap-3">
+        <label className="text-sm text-gray-700">
+          Nhóm sản phẩm
+          <select
+            className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500"
+            value={productGroup}
+            onChange={(e) => setProductGroup(e.target.value as ProductGroup | "")}
+          >
+            <option value="">— Chưa chọn —</option>
+            {Object.entries(PRODUCT_GROUP_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm text-gray-700">
+          Loại sản phẩm
+          <select
+            className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+          >
+            <option value="">— Chưa chọn —</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </label>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <label className="text-sm text-gray-700">Mã NL<input className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={materialCode} onChange={(e) => setMaterialCode(e.target.value)} /></label>
         <label className="text-sm text-gray-700">Người lập<input className="mt-1 w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></label>

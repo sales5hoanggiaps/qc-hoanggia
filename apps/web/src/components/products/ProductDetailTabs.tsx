@@ -16,10 +16,12 @@ export function ProductDetailTabs({
   product,
   role,
   mediaUrls,
+  categories = [],
 }: {
   product: ProductDetail;
   role: UserRole;
   mediaUrls: Record<string, string>;
+  categories?: { id: string; name: string }[];
 }) {
   const [activeTab, setActiveTab] = useState<TabName>("Tiêu chuẩn sản phẩm");
   const [editing, setEditing] = useState(false);
@@ -97,6 +99,7 @@ export function ProductDetailTabs({
             onDoneEditing={() => setEditing(false)}
             onSaved={() => setSavedMessage("Đã lưu thành công")}
             mediaUrls={mediaUrls}
+            categories={categories}
           />
         )}
         {activeTab === "QC sản phẩm" && (

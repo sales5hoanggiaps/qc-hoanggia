@@ -25,6 +25,14 @@ enum ProductStatus {
   DISCONTINUED
 }
 
+/// Nhóm sản phẩm — 3 lựa chọn cố định (khác Category/"Loại sản phẩm", vốn là 1 danh sách
+/// admin tự thêm được). Gán tay, không đồng bộ từ AMIS — cùng nguyên tắc đã áp dụng cho Category.
+enum ProductGroup {
+  SAN_XUAT
+  THUONG_MAI
+  GIA_CONG
+}
+
 enum DocumentKind {
   COA
   MSDS
@@ -61,6 +69,7 @@ model Product {
   amisProductId    String           @unique
   categoryId       String?
   category         Category?        @relation(fields: [categoryId], references: [id])
+  productGroup     ProductGroup?
   status           ProductStatus    @default(PENDING_QC)
   currentVersionId String?          @unique
   currentVersion   ProductVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])

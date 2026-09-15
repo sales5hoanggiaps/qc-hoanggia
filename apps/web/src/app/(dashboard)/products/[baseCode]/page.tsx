@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { prisma } from "@qc/db";
 import { auth } from "@/lib/auth";
 import { getProductDetail } from "@/lib/products/get-product-detail";
 import { buildMediaUrlMap } from "@/lib/products/build-media-url-map";
@@ -17,6 +18,7 @@ export default async function ProductDetailPage({ params }: { params: { baseCode
   if (!product || !product.currentVersion) notFound();
 
   const mediaUrls = await buildMediaUrlMap(product.currentVersion);
+  const categories = await prisma.category.findMany({ orderBy: { name: "asc" } });
 
   return (
     <div className="p-8">
@@ -29,7 +31,7 @@ export default async function ProductDetailPage({ params }: { params: { baseCode
         <StatusBadge status={product.status} />
       </div>
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-card">
-        <ProductDetailTabs product={product} role={session.user.role} mediaUrls={mediaUrls} />
+        <ProductDetailTabs product={product} role={session.user.role} mediaUrls={mediaUrls} categories={categories} />
       </div>
     </div>
   );

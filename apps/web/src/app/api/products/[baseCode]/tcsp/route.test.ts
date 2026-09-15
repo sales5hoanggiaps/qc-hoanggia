@@ -148,6 +148,45 @@ describe("/api/products/[baseCode]/tcsp", () => {
     expect(tcsp?.approvedAt?.toISOString().slice(0, 10)).toBe("2026-01-15");
   });
 
+  it("MANAGER chọn Nhóm sản phẩm + Loại sản phẩm — lưu vào Product và ghi ChangeLogEntry", async () => {
+    mockSession(UserRole.MANAGER);
+    const category = await prisma.category.create({ data: { name: `Loại test ${baseCode}` } });
+
+    const req = new Request(`http://localhost/api/products/${baseCode}/tcsp`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        materialCode: "NL001",
+        description: "Màng OPP 2 lớp",
+        specRows: [],
+        productGroup: "SAN_XUAT",
+        categoryId: category.id,
+      }),
+    });
+    const res = await PATCH(req, { params: { baseCode } });
+    expect(res.status).toBe(200);
+
+    const product = await prisma.product.findUnique({ where: { baseCode } });
+    expect(product?.productGroup).toBe("SAN_XUAT");
+    expect(product?.categoryId).toBe(category.id);
+
+    const logs = await prisma.changeLogEntry.findMany({ where: { versionId } });
+    expect(logs.some((l) => l.fieldPath === "productGroup" && l.newValue === "Sản xuất")).toBe(true);
+    expect(logs.some((l) => l.fieldPath === "category" && l.newValue === category.name)).toBe(true);
+
+    await prisma.product.update({ where: { baseCode }, data: { categoryId: null } });
+    await prisma.category.delete({ where: { id: category.id } });
+  });
+
+  it("categoryId không tồn tại trả 400, không đụng vào Product", async () => {
+    mockSession(UserRole.MANAGER);
+    const req = new Request(`http://localhost/api/products/${baseCode}/tcsp`, {
+      method: "PATCH",
+      body: JSON.stringify({ description: "x", specRows: [], categoryId: "khong-ton-tai" }),
+    });
+    const res = await PATCH(req, { params: { baseCode } });
+    expect(res.status).toBe(400);
+  });
+
   afterAll(async () => {
     const tcsp = await prisma.tCSPData.findUnique({ where: { versionId } });
     if (tcsp) {

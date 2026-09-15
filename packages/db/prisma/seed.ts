@@ -18,7 +18,20 @@ async function main() {
     },
   });
 
-  const categories = ["Tem nhãn", "Túi", "Hộp", "Cuộn màng PE"];
+  const categories = [
+    "Tem nhãn",
+    "Túi màng đơn",
+    "Túi màng phức hợp",
+    "Sách hướng dẫn",
+    "Hộp",
+    "Thùng carton",
+    "Dây đai",
+    "Khoá nhựa",
+    "Mực in mã vạch",
+    "Màng PE",
+    "Màng POF",
+    "Khác",
+  ];
   for (const name of categories) {
     await prisma.category.upsert({ where: { name }, update: {}, create: { name } });
   }

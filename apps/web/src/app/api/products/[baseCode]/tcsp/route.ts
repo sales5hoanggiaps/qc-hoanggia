@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma, UserRole } from "@qc/db";
+import { prisma, UserRole, ProductGroup } from "@qc/db";
 import { auth } from "@/lib/auth";
 import { assertRole, ForbiddenError } from "@/lib/auth/guard";
 import { diffFields, recordChanges } from "@/lib/products/change-log";
@@ -8,6 +8,12 @@ import { diffFields, recordChanges } from "@/lib/products/change-log";
 // Không dùng `session!.user.id` (non-null assertion) — ban chỉ đạo SDD của plan này (Task 1) đã
 // yêu cầu tránh pattern đó dù an toàn tại đây (assertRole đã ném lỗi trước nếu role undefined);
 // guard tường minh dưới đây thu hẹp kiểu cho TypeScript mà không cần `!`.
+
+const PRODUCT_GROUP_LABELS: Record<ProductGroup, string> = {
+  [ProductGroup.SAN_XUAT]: "Sản xuất",
+  [ProductGroup.THUONG_MAI]: "Thương mại",
+  [ProductGroup.GIA_CONG]: "Gia công",
+};
 
 const specRowSchema = z.object({
   groupName: z.string().min(1),
@@ -30,6 +36,10 @@ const tcspSchema = z.object({
     .optional()
     .refine((v) => v == null || !isNaN(Date.parse(v)), { message: "Ngày duyệt không hợp lệ" }),
   specRows: z.array(specRowSchema),
+  // Nhóm/Loại sản phẩm thuộc về Product (dùng chung mọi phiên bản), không phải TCSPData — đặt
+  // chung form/nút Lưu-Huỷ với tab này vì đó là nơi anh Quân yêu cầu hiển thị 2 trường này.
+  categoryId: z.string().nullable().optional(),
+  productGroup: z.nativeEnum(ProductGroup).nullable().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: { baseCode: string } }) {
@@ -42,7 +52,7 @@ export async function PATCH(req: Request, { params }: { params: { baseCode: stri
   }
   if (!session) return NextResponse.json({ error: "Không đủ quyền truy cập" }, { status: 403 });
 
-  const product = await prisma.product.findUnique({ where: { baseCode: params.baseCode } });
+  const product = await prisma.product.findUnique({ where: { baseCode: params.baseCode }, include: { category: true } });
   if (!product || !product.currentVersionId) {
     return NextResponse.json({ error: "Không tìm thấy mã hàng" }, { status: 404 });
   }
@@ -50,6 +60,15 @@ export async function PATCH(req: Request, { params }: { params: { baseCode: stri
   const parsed = tcspSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const nextCategoryId = parsed.data.categoryId ?? null;
+  const nextProductGroup = parsed.data.productGroup ?? null;
+  let nextCategoryName: string | null = null;
+  if (nextCategoryId) {
+    const category = await prisma.category.findUnique({ where: { id: nextCategoryId } });
+    if (!category) return NextResponse.json({ error: "Loại sản phẩm không hợp lệ" }, { status: 400 });
+    nextCategoryName = category.name;
   }
 
   const versionId = product.currentVersionId;
@@ -107,11 +126,22 @@ export async function PATCH(req: Request, { params }: { params: { baseCode: stri
     });
   }
 
+  // Nhóm/Loại sản phẩm thuộc Product (dùng chung mọi phiên bản) — ghi log bằng nhãn tiếng Việt
+  // (tên danh mục / nhãn nhóm) thay vì id/mã enum thô, cho tab Lịch sử phiên bản dễ đọc.
+  changes.push(
+    ...diffFields(
+      { category: product.category?.name ?? null, productGroup: product.productGroup ? PRODUCT_GROUP_LABELS[product.productGroup] : null },
+      { category: nextCategoryName, productGroup: nextProductGroup ? PRODUCT_GROUP_LABELS[nextProductGroup] : null }
+    )
+  );
+
   // Upsert TCSPData + ghi đè toàn bộ specRows + ghi change log phải atomic: nếu deleteMany chạy
   // xong nhưng createMany hay recordChanges lỗi giữa chừng, không được để mất trắng specRows mà
   // không có gì được ghi nhận. Theo đúng pattern `prisma.$transaction` đã dùng ở
   // apps/worker/src/sync/upsert-product.ts.
   await prisma.$transaction(async (tx) => {
+    await tx.product.update({ where: { id: product.id }, data: { categoryId: nextCategoryId, productGroup: nextProductGroup } });
+
     const tcspData = await tx.tCSPData.upsert({
       where: { versionId },
       update: { ...nextScalars, approvedAt: nextScalars.approvedAt ? new Date(nextScalars.approvedAt) : null },
