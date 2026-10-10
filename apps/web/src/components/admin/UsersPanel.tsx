@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ResetPasswordModal } from "./ResetPasswordModal";
 
 interface UserRow {
   id: string;
@@ -23,6 +24,7 @@ export function UsersPanel() {
   const [tempPassword, setTempPassword] = useState("");
   const [role, setRole] = useState<"QC_STAFF" | "MANAGER">("QC_STAFF");
   const [error, setError] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
 
   async function load() {
     const res = await fetch("/api/admin/users");
@@ -117,6 +119,12 @@ export function UsersPanel() {
                 <td className="px-3 py-2.5 text-gray-700">{ROLE_LABELS[u.role]}</td>
                 <td className="px-3 py-2.5 text-gray-700">{u.isActive ? "Đang hoạt động" : "Đã khoá"}</td>
                 <td className="space-x-3 px-3 py-2.5">
+                  <button
+                    onClick={() => setSelectedUser(u)}
+                    className="font-medium text-amber-600 hover:underline"
+                  >
+                    Đổi mật khẩu
+                  </button>
                   {u.role !== "ADMIN" && (
                     <button onClick={() => toggleManager(u)} className="font-medium text-brand-600 hover:underline">
                       {u.role === "MANAGER" ? "Bỏ Quản trị viên" : "Cấp Quản trị viên"}
@@ -135,6 +143,12 @@ export function UsersPanel() {
           </tbody>
         </table>
       </div>
+
+      <ResetPasswordModal
+        user={selectedUser}
+        onClose={() => setSelectedUser(null)}
+        onSuccess={load}
+      />
     </div>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserRole } from "@qc/db";
 import { SignOutButton } from "./SignOutButton";
+import { ChangePasswordModal } from "./ChangePasswordModal";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   QC_STAFF: "Nhân viên QC",
@@ -61,6 +63,7 @@ interface NavItem {
 }
 
 export function DashboardNav({ role, fullName }: { role: UserRole; fullName?: string }) {
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const pathname = usePathname();
   const canManageContent = role === UserRole.MANAGER || role === UserRole.ADMIN;
 
@@ -73,46 +76,64 @@ export function DashboardNav({ role, fullName }: { role: UserRole; fullName?: st
   ];
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b px-5 py-5">
-        {/* eslint-disable-next-line @next/next/no-img-element -- logo.svg là ảnh tĩnh trong public/,
-            không cần next/image tối ưu hoá (không phải ảnh do người dùng tải lên, không đổi kích thước). */}
-        <img src="/logo.svg" alt="Hoàng Gia PS" className="h-9 w-auto" />
-        <div className="mt-1.5 text-xs text-gray-400">Bộ phận Kiểm soát chất lượng</div>
+    <>
+      <div className="flex h-full flex-col">
+        <div className="border-b px-5 py-5">
+          {/* eslint-disable-next-line @next/next/no-img-element -- logo.svg là ảnh tĩnh trong public/,
+              không cần next/image tối ưu hoá (không phải ảnh do người dùng tải lên, không đổi kích thước). */}
+          <img src="/logo.svg" alt="Hoàng Gia PS" className="h-9 w-auto" />
+          <div className="mt-1.5 text-xs text-gray-400">Bộ phận Kiểm soát chất lượng</div>
+        </div>
+
+        <nav className="flex-1 space-y-0.5 p-3 text-sm">
+          {items
+            .filter((item) => item.visible)
+            .map((item) => {
+              const active = item.href === "/" ? pathname === "/" : pathname?.startsWith(item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
+                    active ? "bg-brand-50 font-medium text-brand-700" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  }`}
+                >
+                  <span className={active ? "text-brand-600" : "text-gray-400"}>
+                    <Icon />
+                  </span>
+                  {item.label}
+                </Link>
+              );
+            })}
+        </nav>
+
+        <div className="border-t p-3">
+          {fullName && (
+            <div className="px-3 py-1.5">
+              <p className="truncate text-sm font-medium text-gray-800">{fullName}</p>
+              <p className="text-xs text-gray-400">{ROLE_LABELS[role]}</p>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowPasswordModal(true)}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-5 w-5 text-gray-400">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+            Đổi mật khẩu
+          </button>
+          <SignOutButton />
+        </div>
       </div>
 
-      <nav className="flex-1 space-y-0.5 p-3 text-sm">
-        {items
-          .filter((item) => item.visible)
-          .map((item) => {
-            const active = item.href === "/" ? pathname === "/" : pathname?.startsWith(item.href);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
-                  active ? "bg-brand-50 font-medium text-brand-700" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                }`}
-              >
-                <span className={active ? "text-brand-600" : "text-gray-400"}>
-                  <Icon />
-                </span>
-                {item.label}
-              </Link>
-            );
-          })}
-      </nav>
-
-      <div className="border-t p-3">
-        {fullName && (
-          <div className="px-3 py-1.5">
-            <p className="truncate text-sm font-medium text-gray-800">{fullName}</p>
-            <p className="text-xs text-gray-400">{ROLE_LABELS[role]}</p>
-          </div>
-        )}
-        <SignOutButton />
-      </div>
-    </div>
+      <ChangePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+      />
+    </>
   );
 }
