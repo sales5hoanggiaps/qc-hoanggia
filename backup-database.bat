@@ -4,9 +4,11 @@ echo ==========================================================
 echo   SAO LƯU CƠ SỞ DỮ LIỆU QC HOÀNG GIA (POSTGRES + MINIO)
 echo ==========================================================
 echo.
-echo 1. Đang xuất Database PostgreSQL...
-docker exec infra-postgres-1 pg_dump -U qc qc_hoanggia > "..\qc_hoanggia_backup.sql"
-echo -> Đã lưu file: D:\Mr Quân\qc_hoanggia_backup.sql
+echo 1. Đang xuất Database PostgreSQL (chuẩn UTF-8)...
+docker exec infra-postgres-1 pg_dump -U qc -E UTF8 -f /tmp/backup.sql qc_hoanggia
+docker cp infra-postgres-1:/tmp/backup.sql "..\qc_hoanggia_backup.sql"
+docker exec infra-postgres-1 rm -f /tmp/backup.sql
+echo -> Đã lưu file: ..\qc_hoanggia_backup.sql
 echo.
 echo 2. Đang sao lưu file đính kèm/hình ảnh MinIO...
 docker cp infra-minio-1:/data "..\qc_minio_data_backup"

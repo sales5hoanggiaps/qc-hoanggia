@@ -20,7 +20,7 @@ services:
       MINIO_ROOT_PASSWORD: qc_minio_password
     ports:
       - "9000:9000"
-      - "9001:9001"
+      - "9002:9001"
     volumes:
       - qc_minio_data:/data
 

@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
 // next/font tự tải + tối ưu font lúc build (self-host, không gọi CDN Google Fonts lúc runtime) —
-// hỗ trợ đầy đủ dấu tiếng Việt qua subset "latin" + "vietnamese".
-const inter = Inter({ subsets: ["latin", "vietnamese"], variable: "--font-inter" });
+// hỗ trợ đầy đủ dấu tiếng Việt qua subset "latin", "vietnamese" và "latin-ext".
+const inter = Inter({ subsets: ["latin", "vietnamese", "latin-ext"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "QC Hoàng Gia",

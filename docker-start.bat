@@ -13,7 +13,7 @@ echo.
 echo ==========================================================
 echo   Ứng dụng đang chạy tại:
 echo   - Giao diện Web QC: http://localhost:3100
-echo   - MinIO Console:    http://localhost:9001 (qc_minio / qc_minio_password)
+echo   - MinIO Console:    http://localhost:9002 (qc_minio / qc_minio_password)
 echo   - Postgres:         localhost:5433 (user: qc, db: qc_hoanggia)
 echo ==========================================================
 pause

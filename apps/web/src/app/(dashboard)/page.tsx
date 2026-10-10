@@ -6,7 +6,7 @@ import { searchProducts } from "@/lib/products/search-products";
 
 // Chỉ trang chủ dùng Manrope cho tiêu đề/số liệu nổi bật (thay vì Inter mặc định của cả app) —
 // tự host qua next/font/google như Inter ở layout gốc, không gọi CDN lúc chạy.
-const manrope = Manrope({ subsets: ["latin", "vietnamese"], weight: ["700", "800"], variable: "--font-manrope" });
+const manrope = Manrope({ subsets: ["latin", "vietnamese", "latin-ext"], weight: ["700", "800"], variable: "--font-manrope" });
 
 export default async function HomePage({
   searchParams,
@@ -52,7 +52,7 @@ export default async function HomePage({
             Công ty CP Giải pháp Đóng gói Hoàng Gia
           </span>
           <h1
-            style={{ fontFamily: "var(--font-manrope)", textWrap: "balance" }}
+            style={{ fontFamily: "var(--font-manrope), var(--font-inter), system-ui, sans-serif", textWrap: "balance" }}
             className="relative mt-4 max-w-xs text-3xl font-extrabold leading-tight text-white sm:max-w-sm sm:text-4xl"
           >
             Tìm mã hàng trong tích tắc
@@ -87,7 +87,7 @@ export default async function HomePage({
                   s.tone === "dark" ? "bg-accent-500 text-white" : "bg-white text-brand-700"
                 }`}
               >
-                <span style={{ fontFamily: "var(--font-manrope)" }} className="px-1 text-base font-extrabold leading-none">
+                <span style={{ fontFamily: "var(--font-manrope), var(--font-inter), system-ui, sans-serif" }} className="px-1 text-base font-extrabold leading-none">
                   {s.value}
                 </span>
               </div>
