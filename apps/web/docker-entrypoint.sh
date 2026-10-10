@@ -10,8 +10,18 @@ set -e
 
 SCHEMA="packages/db/prisma/schema.prisma"
 
-echo "[entrypoint] Running prisma migrate deploy..."
-node_modules/.bin/prisma migrate deploy --schema="$SCHEMA"
+echo "[entrypoint] Waiting for database to be ready and running prisma migrate deploy..."
+MAX_RETRIES=30
+RETRY_COUNT=0
+until node_modules/.bin/prisma migrate deploy --schema="$SCHEMA"; do
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; then
+    echo "[entrypoint] Database connection failed after $MAX_RETRIES attempts. Exiting."
+    exit 1
+  fi
+  echo "[entrypoint] Database is unavailable or initializing — waiting 2 seconds (attempt $RETRY_COUNT/$MAX_RETRIES)..."
+  sleep 2
+done
 
 echo "[entrypoint] Checking whether the database already has users..."
 USER_STATE=$(node -e "

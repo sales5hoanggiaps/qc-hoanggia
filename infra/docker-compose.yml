@@ -12,7 +12,7 @@ services:
       - qc_postgres_data:/var/lib/postgresql/data
 
   minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:

@@ -9,6 +9,7 @@ WORKDIR /repo
 RUN apk add --no-cache openssl
 COPY package.json ./
 COPY packages/db/package.json packages/db/package.json
+COPY packages/storage/package.json packages/storage/package.json
 COPY apps/web/package.json apps/web/package.json
 # Root "build" (invoked below) also builds apps/worker's workspace after
 # apps/web's — its package.json (node-cron et al.) must be installed here
@@ -18,6 +19,7 @@ RUN npm install
 
 FROM base AS build
 COPY . .
+ENV DATABASE_URL="postgresql://qc:qc_dev_password@postgres:5432/qc_hoanggia"
 # Root "build" script runs packages/db's own build (prisma generate + tsc,
 # producing dist/index.js) before building apps/web — apps/web's build
 # fails to resolve "@qc/db" without that compiled output existing first.
