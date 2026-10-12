@@ -9,6 +9,16 @@ const inter = Inter({ subsets: ["latin", "vietnamese", "latin-ext"], variable: "
 export const metadata: Metadata = {
   title: "QC Hoàng Gia",
   description: "Hệ thống tra cứu tiêu chuẩn sản phẩm & QC — Hoàng Gia",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "QC Hoàng Gia",
+  },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
