@@ -6,7 +6,7 @@ import { assertRole, ForbiddenError } from "@/lib/auth/guard";
 
 const updateUserSchema = z.object({
   isActive: z.boolean().optional(),
-  role: z.enum([UserRole.QC_STAFF, UserRole.MANAGER]).optional(),
+  role: z.enum([UserRole.QC_STAFF, UserRole.SALES_STAFF, UserRole.MANAGER]).optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {

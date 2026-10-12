@@ -7,12 +7,13 @@ interface UserRow {
   id: string;
   fullName: string;
   username: string;
-  role: "QC_STAFF" | "MANAGER" | "ADMIN";
+  role: "QC_STAFF" | "SALES_STAFF" | "MANAGER" | "ADMIN";
   isActive: boolean;
 }
 
 const ROLE_LABELS: Record<UserRow["role"], string> = {
   QC_STAFF: "Nhân viên QC",
+  SALES_STAFF: "Nhân viên Kinh doanh",
   MANAGER: "Quản trị viên",
   ADMIN: "Quản trị hệ thống",
 };
@@ -22,7 +23,7 @@ export function UsersPanel() {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [tempPassword, setTempPassword] = useState("");
-  const [role, setRole] = useState<"QC_STAFF" | "MANAGER">("QC_STAFF");
+  const [role, setRole] = useState<"QC_STAFF" | "SALES_STAFF" | "MANAGER">("QC_STAFF");
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
 
@@ -61,11 +62,10 @@ export function UsersPanel() {
     await load();
   }
 
-  async function toggleManager(user: UserRow) {
-    const nextRole = user.role === "MANAGER" ? "QC_STAFF" : "MANAGER";
+  async function changeRole(user: UserRow, newRole: "QC_STAFF" | "SALES_STAFF" | "MANAGER") {
     await fetch(`/api/admin/users/${user.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ role: nextRole }),
+      body: JSON.stringify({ role: newRole }),
     });
     await load();
   }
@@ -89,8 +89,9 @@ export function UsersPanel() {
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700">Vai trò</label>
-          <select className="mt-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={role} onChange={(e) => setRole(e.target.value as "QC_STAFF" | "MANAGER")}>
-            <option value="QC_STAFF">QC Staff</option>
+          <select className="mt-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={role} onChange={(e) => setRole(e.target.value as "QC_STAFF" | "SALES_STAFF" | "MANAGER")}>
+            <option value="QC_STAFF">Nhân viên QC</option>
+            <option value="SALES_STAFF">Nhân viên Kinh doanh</option>
             <option value="MANAGER">Quản trị viên</option>
           </select>
         </div>
@@ -116,7 +117,21 @@ export function UsersPanel() {
               <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50">
                 <td className="px-3 py-2.5 text-gray-700">{u.fullName}</td>
                 <td className="px-3 py-2.5 text-gray-700">{u.username}</td>
-                <td className="px-3 py-2.5 text-gray-700">{ROLE_LABELS[u.role]}</td>
+                <td className="px-3 py-2.5 text-gray-700">
+                  {u.role === "ADMIN" ? (
+                    <span className="font-semibold text-purple-700">{ROLE_LABELS[u.role]}</span>
+                  ) : (
+                    <select
+                      value={u.role}
+                      onChange={(e) => changeRole(u, e.target.value as "QC_STAFF" | "SALES_STAFF" | "MANAGER")}
+                      className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    >
+                      <option value="QC_STAFF">Nhân viên QC</option>
+                      <option value="SALES_STAFF">Nhân viên Kinh doanh</option>
+                      <option value="MANAGER">Quản trị viên</option>
+                    </select>
+                  )}
+                </td>
                 <td className="px-3 py-2.5 text-gray-700">{u.isActive ? "Đang hoạt động" : "Đã khoá"}</td>
                 <td className="space-x-3 px-3 py-2.5">
                   <button
@@ -125,11 +140,6 @@ export function UsersPanel() {
                   >
                     Đổi mật khẩu
                   </button>
-                  {u.role !== "ADMIN" && (
-                    <button onClick={() => toggleManager(u)} className="font-medium text-brand-600 hover:underline">
-                      {u.role === "MANAGER" ? "Bỏ Quản trị viên" : "Cấp Quản trị viên"}
-                    </button>
-                  )}
                   {/* Tài khoản ADMIN không thể tự khoá lẫn nhau qua giao diện này — tránh trường hợp
                       1 ADMIN khoá hết các ADMIN còn lại (kể cả chính mình) và không ai còn mở khoá được. */}
                   {u.role !== "ADMIN" && (

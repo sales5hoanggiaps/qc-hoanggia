@@ -9,6 +9,7 @@ import { ChangePasswordModal } from "./ChangePasswordModal";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   QC_STAFF: "Nhân viên QC",
+  SALES_STAFF: "Nhân viên Kinh doanh",
   MANAGER: "Quản trị viên",
   ADMIN: "Quản trị hệ thống",
 };
