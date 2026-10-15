@@ -40,18 +40,24 @@ export function UsersPanel() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const res = await fetch("/api/admin/users", {
-      method: "POST",
-      body: JSON.stringify({ fullName, username, tempPassword, role }),
-    });
-    if (!res.ok) {
-      setError("Không tạo được tài khoản — kiểm tra lại thông tin.");
-      return;
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName, username, tempPassword, role }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error || "Không tạo được tài khoản — kiểm tra lại thông tin.");
+        return;
+      }
+      setFullName("");
+      setUsername("");
+      setTempPassword("");
+      await load();
+    } catch {
+      setError("Không thể kết nối đến máy chủ.");
     }
-    setFullName("");
-    setUsername("");
-    setTempPassword("");
-    await load();
   }
 
   async function toggleActive(user: UserRow) {
@@ -85,7 +91,14 @@ export function UsersPanel() {
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700">Mật khẩu tạm</label>
-          <input className="mt-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500" value={tempPassword} onChange={(e) => setTempPassword(e.target.value)} required />
+          <input
+            type="password"
+            className="mt-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-brand-500"
+            value={tempPassword}
+            onChange={(e) => setTempPassword(e.target.value)}
+            placeholder="Tối thiểu 6 ký tự"
+            required
+          />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700">Vai trò</label>
