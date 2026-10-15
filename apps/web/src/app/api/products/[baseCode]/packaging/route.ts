@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma, UserRole } from "@qc/db";
 import { auth } from "@/lib/auth";
-import { assertRole, ForbiddenError } from "@/lib/auth/guard";
+import { assertRole, ForbiddenError, PRODUCT_EDITORS } from "@/lib/auth/guard";
 import { diffFields, recordChanges } from "@/lib/products/change-log";
 
 const packagingSchema = z.object({
@@ -13,7 +13,7 @@ const packagingSchema = z.object({
 export async function PATCH(req: Request, { params }: { params: { baseCode: string } }) {
   const session = await auth();
   try {
-    assertRole(session?.user.role, [UserRole.MANAGER, UserRole.ADMIN]);
+    assertRole(session?.user.role, PRODUCT_EDITORS);
   } catch (err) {
     if (err instanceof ForbiddenError) return NextResponse.json({ error: err.message }, { status: 403 });
     throw err;

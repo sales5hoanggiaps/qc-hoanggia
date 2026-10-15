@@ -11,7 +11,7 @@ const SOURCE_LABELS: Record<string, string> = { AMIS_SYNC: "Đồng bộ AMIS", 
 
 export function HistoryTab({ product, role }: { product: ProductDetail; role: UserRole }) {
   const router = useRouter();
-  const canConfirm = role === UserRole.MANAGER || role === UserRole.ADMIN;
+  const canConfirm = role === UserRole.MANAGER || role === UserRole.ADMIN || role === UserRole.SALES_STAFF;
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 

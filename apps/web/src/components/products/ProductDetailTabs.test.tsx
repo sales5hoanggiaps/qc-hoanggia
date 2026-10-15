@@ -55,6 +55,11 @@ describe("ProductDetailTabs", () => {
     expect(screen.getByText("Chỉnh sửa")).toBeDefined();
   });
 
+  it("SALES_STAFF thấy nút Chỉnh sửa ở tab TCSP (tab mặc định)", () => {
+    render(<ProductDetailTabs product={makeProduct()} role={UserRole.SALES_STAFF} mediaUrls={{}} />);
+    expect(screen.getByText("Chỉnh sửa")).toBeDefined();
+  });
+
   it("chuyển sang tab Lịch sử phiên bản thì không còn nút Chỉnh sửa (tab đó không sửa được)", () => {
     render(<ProductDetailTabs product={makeProduct()} role={UserRole.MANAGER} mediaUrls={{}} />);
     fireEvent.click(screen.getByText("Lịch sử phiên bản"));

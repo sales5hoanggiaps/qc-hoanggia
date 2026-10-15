@@ -27,7 +27,7 @@ export function ProductDetailTabs({
   const [editing, setEditing] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const canEdit = role === UserRole.MANAGER || role === UserRole.ADMIN;
+  const canEdit = role === UserRole.MANAGER || role === UserRole.ADMIN || role === UserRole.SALES_STAFF;
   const editableTabs: TabName[] = ["Tiêu chuẩn sản phẩm", "QC sản phẩm", "Quy cách đóng gói", "Giấy tờ sản phẩm"];
   const showEditButton = canEdit && editableTabs.includes(activeTab) && !editing;
 
