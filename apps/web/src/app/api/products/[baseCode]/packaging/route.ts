@@ -40,8 +40,11 @@ export async function PATCH(req: Request, { params }: { params: { baseCode: stri
   const prev = existing ? { instructions: existing.instructions, specialNotes: existing.specialNotes } : null;
   const changes = diffFields(prev, next);
 
-  await prisma.packagingData.upsert({ where: { versionId }, update: next, create: { versionId, ...next } });
-  await recordChanges(versionId, session.user.id, changes);
+  await prisma.$transaction(async (tx) => {
+    await tx.product.update({ where: { id: product.id }, data: { status: ProductStatus.ACTIVE } });
+    await tx.packagingData.upsert({ where: { versionId }, update: next, create: { versionId, ...next } });
+    await recordChanges(versionId, session.user.id, changes, tx);
+  });
 
   return NextResponse.json({ ok: true });
 }

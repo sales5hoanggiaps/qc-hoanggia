@@ -140,7 +140,10 @@ export async function PATCH(req: Request, { params }: { params: { baseCode: stri
   // không có gì được ghi nhận. Theo đúng pattern `prisma.$transaction` đã dùng ở
   // apps/worker/src/sync/upsert-product.ts.
   await prisma.$transaction(async (tx) => {
-    await tx.product.update({ where: { id: product.id }, data: { categoryId: nextCategoryId, productGroup: nextProductGroup } });
+    await tx.product.update({
+      where: { id: product.id },
+      data: { categoryId: nextCategoryId, productGroup: nextProductGroup, status: ProductStatus.ACTIVE },
+    });
 
     const tcspData = await tx.tCSPData.upsert({
       where: { versionId },

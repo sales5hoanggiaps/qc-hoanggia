@@ -2,6 +2,7 @@ import { prisma } from "@qc/db";
 import { fetchAllPages } from "../amis/client";
 import { AmisSaleOrder, AmisCustomer } from "../amis/types";
 import { upsertProductFromAmis } from "./upsert-product";
+import { parseVersionSuffix } from "./version-detection";
 import { logger } from "../logger";
 
 export interface RunSyncResult {
@@ -22,7 +23,7 @@ export class SyncAlreadyRunningError extends Error {
   }
 }
 
-const YEAR_START = new Date("2026-01-01T00:00:00.000+07:00");
+const YEAR_START = new Date("2025-01-01T00:00:00.000+07:00");
 const YEAR_END = new Date("2027-01-01T00:00:00.000+07:00");
 
 // Cờ in-flight ở cấp module — Node đơn luồng nên việc kiểm tra + set cờ này ngay ở đầu hàm,
@@ -61,7 +62,8 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
       fetchAllPages<AmisCustomer>("/api/v2/Customers"),
     ]);
 
-    const ordersIn2026 = orders.filter((o) => {
+    // Chỉ lấy những mã đã bán của năm 2025 và 2026
+    const ordersInPeriod = orders.filter((o) => {
       if (!o.sale_order_date) return false;
       const d = new Date(o.sale_order_date);
       return d >= YEAR_START && d < YEAR_END;
@@ -69,13 +71,70 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
 
     const customerByName = new Map(customers.map((c) => [c.account_name, c]));
 
-    // Mô tả (tab Tiêu chuẩn sản phẩm) của phiên bản hiện hành phải luôn khớp đơn hàng GẦN NHẤT
-    // của mã đó (theo sale_order_date, không phải thứ tự fetch/modified_date — xem cùng lý do
-    // đã áp dụng cho lastOrderDate bên dưới). Gom lại theo Product.id trong lúc chạy vòng lặp,
-    // rồi áp dụng 1 lần sau khi hết vòng lặp chính.
+    // 1. Thu thập phiên bản cao nhất (mới nhất) cho mỗi mã gốc (baseCode) trong toàn bộ đơn hàng 2025-2026.
+    // Những mã có nhiều phiên bản thì chỉ lấy phiên bản mới nhất.
+    const maxVersionByBaseCode = new Map<string, number>();
+    for (const order of ordersInPeriod) {
+      for (const mapping of order.sale_order_product_mappings ?? []) {
+        if (!mapping.product_code) continue;
+        const parsed = parseVersionSuffix(mapping.product_code);
+        const baseCode = parsed ? parsed.baseCode : mapping.product_code;
+        const versionNumber = parsed ? parsed.versionNumber : 1;
+        const currentMax = maxVersionByBaseCode.get(baseCode) ?? 0;
+        if (versionNumber > currentMax) {
+          maxVersionByBaseCode.set(baseCode, versionNumber);
+        }
+      }
+    }
+
+    // 2. Đồng bộ sản phẩm theo các mã đạt phiên bản mới nhất
+    const productIdByBaseCode = new Map<string, string>();
+
+    for (const order of ordersInPeriod) {
+      for (const mapping of order.sale_order_product_mappings ?? []) {
+        if (!mapping.product_code) continue;
+        const parsed = parseVersionSuffix(mapping.product_code);
+        const baseCode = parsed ? parsed.baseCode : mapping.product_code;
+        const versionNumber = parsed ? parsed.versionNumber : 1;
+        const maxVersion = maxVersionByBaseCode.get(baseCode) ?? 1;
+
+        // Bỏ qua nếu mã này cũ hơn phiên bản mới nhất của baseCode trong giai đoạn 2025-2026
+        if (versionNumber < maxVersion) {
+          continue;
+        }
+
+        const amisProductId = `code:${mapping.product_code}`;
+
+        const result = await upsertProductFromAmis({
+          amisProductId,
+          code: mapping.product_code,
+          name: mapping.description || mapping.product_code,
+          description: mapping.description,
+        });
+
+        productIdByBaseCode.set(baseCode, result.productId);
+        if (result.kind === "created") newProducts++;
+        if (result.kind === "new_version") newVersions++;
+        if (result.kind === "linked_existing" && result.duplicateVersionNumber) duplicateVersionCodes++;
+
+        if (result.kind === "linked_existing") {
+          const existingProduct = await prisma.product.findUnique({ where: { id: result.productId } });
+          if (existingProduct && existingProduct.status !== "PENDING_QC") {
+            const currentVersion = await prisma.productVersion.findUnique({
+              where: { id: existingProduct.currentVersionId ?? "" },
+            });
+            if (currentVersion && currentVersion.name !== (mapping.description || mapping.product_code)) {
+              flaggedReview++;
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Quét các đơn hàng để liên kết khách hàng & thu thập mô tả chi tiết gần nhất
     const latestOrderDescByProductId = new Map<string, { date: Date; description: string }>();
 
-    for (const order of ordersIn2026) {
+    for (const order of ordersInPeriod) {
       const orderDate = order.sale_order_date ? new Date(order.sale_order_date) : null;
       let customerId: string | null = null;
       if (order.account_name) {
@@ -91,35 +150,22 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
 
       for (const mapping of order.sale_order_product_mappings ?? []) {
         if (!mapping.product_code) continue;
-        const amisProductId = `code:${mapping.product_code}`; // xem "Cannot verify" note trong report Task 4
+        const parsed = parseVersionSuffix(mapping.product_code);
+        const baseCode = parsed ? parsed.baseCode : mapping.product_code;
+        const productId = productIdByBaseCode.get(baseCode);
+        if (!productId) continue;
 
-        const result = await upsertProductFromAmis({
-          amisProductId,
-          code: mapping.product_code,
-          name: mapping.description || mapping.product_code,
-          description: mapping.description,
-        });
-        if (result.kind === "created") newProducts++;
-        if (result.kind === "new_version") newVersions++;
-        if (result.kind === "linked_existing" && result.duplicateVersionNumber) duplicateVersionCodes++;
-
-        // Bỏ qua đơn không có ngày hoặc mô tả chi tiết rỗng — không đủ căn cứ để so sánh "gần
-        // nhất" hay để ghi đè 1 Mô tả đã có bằng nội dung trống. Dùng `custom_field5` (mô tả chi
-        // tiết thật của dòng hàng), KHÔNG dùng `description` (nhãn ngắn, lặp lại giữa nhiều mã).
         if (orderDate && mapping.custom_field5) {
-          const prevBest = latestOrderDescByProductId.get(result.productId);
+          const prevBest = latestOrderDescByProductId.get(productId);
           if (!prevBest || orderDate > prevBest.date) {
-            latestOrderDescByProductId.set(result.productId, { date: orderDate, description: mapping.custom_field5 });
+            latestOrderDescByProductId.set(productId, { date: orderDate, description: mapping.custom_field5 });
           }
         }
 
         if (customerId) {
           const existingLink = await prisma.productCustomer.findUnique({
-            where: { productId_customerId: { productId: result.productId, customerId } },
+            where: { productId_customerId: { productId, customerId } },
           });
-          // Đơn hàng được fetch theo thứ tự modified_date giảm dần (không liên quan đến
-          // thứ tự sale_order_date), nên không được ghi đè lastOrderDate một cách vô điều
-          // kiện — chỉ cập nhật khi ngày của đơn hàng hiện tại mới hơn giá trị đã lưu.
           const lastOrderDate =
             existingLink?.lastOrderDate && orderDate
               ? existingLink.lastOrderDate > orderDate
@@ -127,32 +173,15 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
                 : orderDate
               : (orderDate ?? existingLink?.lastOrderDate ?? null);
           await prisma.productCustomer.upsert({
-            where: { productId_customerId: { productId: result.productId, customerId } },
+            where: { productId_customerId: { productId, customerId } },
             update: { lastOrderDate },
             create: {
-              productId: result.productId,
+              productId,
               customerId,
               lastOrderDate,
             },
           });
           updatedLinks++;
-        }
-
-        if (result.kind === "linked_existing") {
-          // Mã đã tồn tại từ trước (không tạo Product/ProductVersion mới trong lần gọi
-          // này) — kiểm tra xem tên/mô tả từ đơn hàng gần nhất có khác dữ liệu đang lưu
-          // không, để gắn cờ chứ không tự sửa (spec §6 bước 5). Chỉ áp dụng khi Product
-          // đã có nội dung QC (không còn PENDING_QC) — mã mới toanh (PENDING_QC) chưa có
-          // gì để so sánh/bảo vệ.
-          const existingProduct = await prisma.product.findUnique({ where: { id: result.productId } });
-          if (existingProduct && existingProduct.status !== "PENDING_QC") {
-            const currentVersion = await prisma.productVersion.findUnique({
-              where: { id: existingProduct.currentVersionId ?? "" },
-            });
-            if (currentVersion && currentVersion.name !== (mapping.description || mapping.product_code)) {
-              flaggedReview++;
-            }
-          }
         }
       }
     }

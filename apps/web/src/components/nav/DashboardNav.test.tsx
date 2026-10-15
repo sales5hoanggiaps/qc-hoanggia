@@ -45,6 +45,6 @@ describe("DashboardNav", () => {
   it("mục Tìm kiếm được đánh dấu active khi đang ở trang chủ (aria-current)", () => {
     render(<DashboardNav role={UserRole.QC_STAFF} />);
     const searchLink = screen.getByText("Tìm kiếm").closest("a");
-    expect(searchLink?.className).toContain("bg-brand-50");
+    expect(searchLink?.className).toContain("bg-red-600");
   });
 });

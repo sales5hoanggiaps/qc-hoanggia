@@ -288,7 +288,7 @@ describe("upsertProductFromAmis", () => {
       name: "Bản .1 (xuất hiện sau nhưng là bản CŨ hơn)",
       description: null,
     });
-    expect(secondResult.kind).toBe("new_version");
+    expect(secondResult.kind).toBe("linked_existing");
 
     const afterSecond = await prisma.product.findUnique({
       where: { baseCode: versionBaseCode },
@@ -300,9 +300,8 @@ describe("upsertProductFromAmis", () => {
     const olderVersion = await prisma.productVersion.findFirst({
       where: { productId: afterSecond!.id, versionNumber: 1 },
     });
-    // Vẫn tạo bản ghi ProductVersion số 1 (để xem trong Lịch sử phiên bản sau này), chỉ không phải currentVersion.
-    expect(olderVersion).not.toBeNull();
-    expect(olderVersion?.isCurrent).toBe(false);
+    // Không tạo bản ghi ProductVersion số 1 vì quy tắc mới chỉ lấy phiên bản mới nhất
+    expect(olderVersion).toBeNull();
   });
 
   it("mã .1 được xử lý trước, sau đó mã .5 xuất hiện — currentVersion chuyển sang .5 (chiều thuận, vẫn phải hoạt động đúng)", async () => {

@@ -5,6 +5,7 @@ export const PAGE_SIZE = 20;
 export interface ListProductsParams {
   categoryId?: string;
   status?: ProductStatus;
+  filter?: "updated" | "pending" | "new";
   page?: number;
 }
 
@@ -31,9 +32,31 @@ function normalizePage(rawPage: number): number {
 
 export async function listProducts(params: ListProductsParams): Promise<ListProductsResult> {
   const page = normalizePage(params.page ?? 1);
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+  let filterCondition: Record<string, unknown> = {};
+  if (params.filter === "updated") {
+    filterCondition = {
+      OR: [
+        { status: "ACTIVE" },
+        { versions: { some: { changeLogs: { some: { source: "MANUAL" } } } } },
+      ],
+    };
+  } else if (params.filter === "pending") {
+    filterCondition = {
+      status: "PENDING_QC",
+      versions: { none: { changeLogs: { some: { source: "MANUAL" } } } },
+    };
+  } else if (params.filter === "new") {
+    filterCondition = {
+      createdAt: { gte: fourteenDaysAgo },
+    };
+  }
+
   const where = {
     ...(params.categoryId ? { categoryId: params.categoryId } : {}),
     ...(params.status ? { status: params.status } : {}),
+    ...filterCondition,
   };
 
   const [total, products] = await Promise.all([

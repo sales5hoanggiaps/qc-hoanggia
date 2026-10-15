@@ -185,11 +185,16 @@ export async function upsertProductFromAmis(input: UpsertProductInput): Promise<
           return { kind: "linked_existing" as const, productId: existingBase.id, duplicateVersionNumber: true };
         }
 
-        // Chỉ khi số phiên bản mới LỚN HƠN số hiện tại thì đây mới thật sự
-        // là bản mới hơn — nếu nhỏ hơn, đây là 1 mã AMIS cũ hơn vừa được
-        // phát hiện; vẫn ghi nhận lại (tab Lịch sử phiên bản sau này cần
-        // thấy nó) nhưng không được ghi đè currentVersion đang có.
-        const becomesNewCurrent = parsed.versionNumber > currentVersion.versionNumber;
+        // Chỉ lấy phiên bản mới nhất: nếu số phiên bản mới <= số phiên bản hiện tại,
+        // đây là mã cũ hơn hoặc bằng — không tạo thêm ProductVersion cũ, chỉ liên kết mã đã có.
+        if (parsed.versionNumber <= currentVersion.versionNumber) {
+          logger.info(
+            `Mã AMIS ${input.code} (v${parsed.versionNumber}) cũ hơn hoặc bằng phiên bản hiện tại (v${currentVersion.versionNumber}) của ${existingBase.baseCode} — chỉ lấy phiên bản mới nhất, bỏ qua tạo phiên bản cũ.`
+          );
+          return { kind: "linked_existing" as const, productId: existingBase.id };
+        }
+
+        const becomesNewCurrent = true;
         const nameDrifted = detectNameDrift(currentVersion.name, input.name);
 
         const newVersion = await tx.productVersion.create({
