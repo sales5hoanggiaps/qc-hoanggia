@@ -72,7 +72,7 @@ export function DashboardNav({ role, fullName }: { role: UserRole; fullName?: st
     { href: "/", label: "Tìm kiếm", icon: IconSearch, visible: true },
     { href: "/danh-sach", label: "Danh sách mã hàng", icon: IconList, visible: true },
     { href: "/admin/categories", label: "Quản trị viên", icon: IconShield, visible: canManageContent },
-    { href: "/admin/sync", label: "Đồng bộ AMIS", icon: IconSync, visible: canManageContent },
+    { href: "/admin/sync", label: "Đồng bộ AMIS", icon: IconSync, visible: true },
     { href: "/admin/users", label: "Tài khoản", icon: IconUser, visible: role === UserRole.ADMIN },
   ];
 

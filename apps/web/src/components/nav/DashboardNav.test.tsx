@@ -8,10 +8,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("DashboardNav", () => {
-  it("QC_STAFF chỉ thấy Tìm kiếm và Danh sách mã hàng", () => {
+  it("QC_STAFF thấy Tìm kiếm, Danh sách mã hàng và Đồng bộ AMIS", () => {
     render(<DashboardNav role={UserRole.QC_STAFF} />);
     expect(screen.getByText("Tìm kiếm")).toBeDefined();
     expect(screen.getByText("Danh sách mã hàng")).toBeDefined();
+    expect(screen.getByText("Đồng bộ AMIS")).toBeDefined();
     expect(screen.queryByText("Quản trị viên")).toBeNull();
     expect(screen.queryByText("Tài khoản")).toBeNull();
     expect(screen.getByText("Đăng xuất")).toBeDefined();

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Manrope } from "next/font/google";
 import { prisma } from "@qc/db";
 import { searchProducts } from "@/lib/products/search-products";
+import { ManualSyncButton } from "@/components/sync/ManualSyncButton";
 
 // Chỉ trang chủ dùng Manrope cho tiêu đề/số liệu nổi bật (thay vì Inter mặc định của cả app) —
 // tự host qua next/font/google như Inter ở layout gốc, không gọi CDN lúc chạy.
@@ -94,6 +95,10 @@ export default async function HomePage({
               <span className="mt-2 max-w-[90px] text-center text-[11px] font-semibold text-gray-500">{s.label}</span>
             </div>
           ))}
+        </div>
+
+        <div className="mb-8 flex justify-center">
+          <ManualSyncButton variant="outline" />
         </div>
 
         {outcome && (

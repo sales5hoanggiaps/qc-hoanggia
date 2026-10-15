@@ -5,7 +5,7 @@ import { SyncPanel } from "@/components/admin/SyncPanel";
 
 export default async function SyncPage() {
   const session = await auth();
-  if (session?.user.role !== UserRole.MANAGER && session?.user.role !== UserRole.ADMIN) redirect("/");
+  if (!session?.user) redirect("/login");
 
   const logs = await prisma.syncLog.findMany({ orderBy: { startedAt: "desc" }, take: 20 });
   const rows = logs.map((l) => ({

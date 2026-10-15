@@ -3,12 +3,12 @@ import { UserRole } from "@qc/db";
 import { auth } from "@/lib/auth";
 import { assertRole, ForbiddenError } from "@/lib/auth/guard";
 
-const MANAGER_OR_ADMIN = [UserRole.MANAGER, UserRole.ADMIN];
+const ALL_ROLES = [UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES_STAFF, UserRole.QC_STAFF];
 
 export async function POST() {
   const session = await auth();
   try {
-    assertRole(session?.user.role, MANAGER_OR_ADMIN);
+    assertRole(session?.user.role, ALL_ROLES);
   } catch (err) {
     if (err instanceof ForbiddenError) return NextResponse.json({ error: err.message }, { status: 403 });
     throw err;

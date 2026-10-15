@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma, type ProductStatus } from "@qc/db";
 import { listProducts } from "@/lib/products/list-products";
 import { StatusBadge, STATUS_LABELS } from "@/components/ui/StatusBadge";
+import { ManualSyncButton } from "@/components/sync/ManualSyncButton";
 
 function isProductStatus(value: string): value is ProductStatus {
   return Object.hasOwn(STATUS_LABELS, value);
@@ -30,9 +31,12 @@ export default async function ProductListPage({
 
   return (
     <main className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Danh sách mã hàng</h1>
-        <p className="mt-1 text-sm text-gray-500">Duyệt và lọc toàn bộ mã hàng đã đồng bộ từ AMIS.</p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Danh sách mã hàng</h1>
+          <p className="mt-1 text-sm text-gray-500">Duyệt và lọc toàn bộ mã hàng đã đồng bộ từ AMIS.</p>
+        </div>
+        <ManualSyncButton />
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white shadow-card">
