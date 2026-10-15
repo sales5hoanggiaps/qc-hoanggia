@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma, UserRole } from "@qc/db";
+import { prisma, UserRole, ProductStatus } from "@qc/db";
 import { auth } from "@/lib/auth";
 import { assertRole, ForbiddenError, PRODUCT_EDITORS } from "@/lib/auth/guard";
 import { diffFields, recordChanges } from "@/lib/products/change-log";
