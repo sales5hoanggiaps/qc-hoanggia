@@ -395,49 +395,49 @@ describe("runAmisSync", () => {
     expect(syncLog?.errorMessage).toContain("network unreachable");
   });
 
-  it("chỉ đồng bộ đơn hàng năm 2025 và 2026, bỏ qua đơn hàng năm 2024", async () => {
+  it("chỉ đồng bộ đơn hàng năm 2026, bỏ qua đơn hàng năm 2025", async () => {
+    const code2026 = `TESTRUN2026${Date.now()}`;
     const code2025 = `TESTRUN2025${Date.now()}`;
-    const code2024 = `TESTRUN2024${Date.now()}`;
 
     mockAmisResponses(
       [
         {
           id: 950,
+          sale_order_no: "SO-TEST-2026",
+          account_name: "Khách hàng 2026",
+          sale_order_date: "2026-06-15T00:00:00.000+07:00",
+          modified_date: "2026-06-15T00:00:00.000+07:00",
+          organization_unit_name: "Phòng kinh doanh I",
+          sale_order_product_mappings: [
+            { product_code: code2026, description: "Hàng bán năm 2026", custom_field3: null },
+          ],
+        },
+        {
+          id: 951,
           sale_order_no: "SO-TEST-2025",
           account_name: "Khách hàng 2025",
-          sale_order_date: "2025-06-15T00:00:00.000+07:00",
-          modified_date: "2025-06-15T00:00:00.000+07:00",
+          sale_order_date: "2025-12-31T00:00:00.000+07:00",
+          modified_date: "2025-12-31T00:00:00.000+07:00",
           organization_unit_name: "Phòng kinh doanh I",
           sale_order_product_mappings: [
             { product_code: code2025, description: "Hàng bán năm 2025", custom_field3: null },
           ],
         },
-        {
-          id: 951,
-          sale_order_no: "SO-TEST-2024",
-          account_name: "Khách hàng 2024",
-          sale_order_date: "2024-12-31T00:00:00.000+07:00",
-          modified_date: "2024-12-31T00:00:00.000+07:00",
-          organization_unit_name: "Phòng kinh doanh I",
-          sale_order_product_mappings: [
-            { product_code: code2024, description: "Hàng bán năm 2024", custom_field3: null },
-          ],
-        },
       ],
       [
-        { id: 99998, account_name: "Khách hàng 2025" },
-        { id: 99999, account_name: "Khách hàng 2024" },
+        { id: 99998, account_name: "Khách hàng 2026" },
+        { id: 99999, account_name: "Khách hàng 2025" },
       ]
     );
 
     const result = await runAmisSync();
     expect(result.newProducts).toBe(1);
 
-    const product2025 = await prisma.product.findUnique({ where: { baseCode: code2025 } });
-    expect(product2025).not.toBeNull();
+    const product2026 = await prisma.product.findUnique({ where: { baseCode: code2026 } });
+    expect(product2026).not.toBeNull();
 
-    const product2024 = await prisma.product.findUnique({ where: { baseCode: code2024 } });
-    expect(product2024).toBeNull();
+    const product2025 = await prisma.product.findUnique({ where: { baseCode: code2025 } });
+    expect(product2025).toBeNull();
   });
 });
 

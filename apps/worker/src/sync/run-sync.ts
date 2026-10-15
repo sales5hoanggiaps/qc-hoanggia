@@ -23,7 +23,7 @@ export class SyncAlreadyRunningError extends Error {
   }
 }
 
-const YEAR_START = new Date("2025-01-01T00:00:00.000+07:00");
+const YEAR_START = new Date("2026-01-01T00:00:00.000+07:00");
 const YEAR_END = new Date("2027-01-01T00:00:00.000+07:00");
 
 // Cờ in-flight ở cấp module — Node đơn luồng nên việc kiểm tra + set cờ này ngay ở đầu hàm,
@@ -62,7 +62,7 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
       fetchAllPages<AmisCustomer>("/api/v2/Customers"),
     ]);
 
-    // Chỉ lấy những mã đã bán của năm 2025 và 2026
+    // Chỉ lấy những mã đã bán của năm 2026
     const ordersInPeriod = orders.filter((o) => {
       if (!o.sale_order_date) return false;
       const d = new Date(o.sale_order_date);
@@ -71,7 +71,7 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
 
     const customerByName = new Map(customers.map((c) => [c.account_name, c]));
 
-    // 1. Thu thập phiên bản cao nhất (mới nhất) cho mỗi mã gốc (baseCode) trong toàn bộ đơn hàng 2025-2026.
+    // 1. Thu thập phiên bản cao nhất (mới nhất) cho mỗi mã gốc (baseCode) trong toàn bộ đơn hàng 2026.
     // Những mã có nhiều phiên bản thì chỉ lấy phiên bản mới nhất.
     const maxVersionByBaseCode = new Map<string, number>();
     for (const order of ordersInPeriod) {
@@ -98,7 +98,7 @@ async function runAmisSyncInternal(): Promise<RunSyncResult> {
         const versionNumber = parsed ? parsed.versionNumber : 1;
         const maxVersion = maxVersionByBaseCode.get(baseCode) ?? 1;
 
-        // Bỏ qua nếu mã này cũ hơn phiên bản mới nhất của baseCode trong giai đoạn 2025-2026
+        // Bỏ qua nếu mã này cũ hơn phiên bản mới nhất của baseCode trong giai đoạn 2026
         if (versionNumber < maxVersion) {
           continue;
         }
